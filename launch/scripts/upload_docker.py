@@ -5,7 +5,8 @@ from rich.console import Console
 from rich.progress import Progress
 from rich import print as rprint
 
-def main(dataset: str):
+def main(dataset: str,
+        clear_after_push= False):
     console = Console()
     client = docker.from_env()
     
@@ -21,7 +22,7 @@ def main(dataset: str):
         task = progress.add_task("Pushing images...", total=len(instances))
         
         for instance in instances:
-            image_key = f"starryzhang/sweb.eval.x86_64.{instance["instance_id"].lower()}".replace("__", "_1776_")
+            image_key = instance["docker_image"]
             
             if image_key not in existing_images:
                 rprint(f"[yellow]Warning: Image {image_key} not found locally[/yellow]")
@@ -38,6 +39,12 @@ def main(dataset: str):
                 rprint(f"[green]Successfully pushed {image_key}[/green]")
             except Exception as e:
                 rprint(f"[red]Error pushing {image_key}: {str(e)}[/red]")
+            try:
+                if clear_after_push:
+                    client.images.remove(image_key)
+                    rprint(f"[green]Successfully cleared {image_key}[/green]")
+            except Exception as e:
+                rprint(f"[red]Error clearing {image_key}: {str(e)}[/red]")
             
             progress.advance(task)
 

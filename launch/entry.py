@@ -18,8 +18,14 @@ def launch(instance: dict, workspace: WorkSpace):
         workspace (WorkSpace): Prepared workspace with repo, logger, and LLM provider
     """
     repo_structure = view_repo_structure(workspace.repo_root)
-    workflow = define_workflow()
+    workflow = define_workflow(
+        max_trials = workspace.max_trials, 
+        max_steps_setup = workspace.max_steps_setup, 
+        max_steps_verify = workspace.max_steps_verify, 
+        timeout = workspace.timeout
+    )
     logger = workspace.logger
+    logger.info(f"{workspace.max_trials}, {workspace.max_steps_setup}, {workspace.max_steps_verify}, {workspace.timeout}")
     initial_state = AgentState.create(
         instance=instance,
         llm=workspace.llm,
@@ -27,8 +33,10 @@ def launch(instance: dict, workspace: WorkSpace):
         language=workspace.language,
         repo_root=workspace.repo_root.resolve(),
         repo_structure=repo_structure,
+        image_prefix=workspace.image_prefix,
         result_path=workspace.result_path,
         date=instance.get("created_at", None),
+        platform=workspace.platform,
     )
 
     for event in workflow.stream(initial_state, stream_mode="values", subgraphs=True):

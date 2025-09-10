@@ -3,6 +3,7 @@ Agent state management for repository setup workflow.
 """
 import operator
 import time
+import traceback
 from functools import wraps
 from logging import Logger
 from typing import Annotated, Callable, List, Union
@@ -64,6 +65,8 @@ class AgentState(State):
     start_time: float | None
     trials: int
     debug: bool
+    platform: str
+    image_prefix: str
 
     @classmethod
     def create(
@@ -74,10 +77,12 @@ class AgentState(State):
         language: LANGUAGE,
         repo_root: str,
         repo_structure: str,
+        image_prefix: str,
         result_path: str,
         date: str | None = None,
         max_search_results: int = 3,
-        debug: bool = False
+        debug: bool = False,
+        platform: str = "linux",
     ) -> Self:
         """
         Create a new AgentState instance with default values.
@@ -111,6 +116,7 @@ class AgentState(State):
             commands=[],
             repo_root=repo_root,
             repo_structure=repo_structure,
+            image_prefix=image_prefix,
             result_path=result_path,
             date=date,
             docs=None,
@@ -123,6 +129,7 @@ class AgentState(State):
             trials=0,
             exception=None,
             debug=debug,
+            platform=platform
         )
 
 
@@ -141,7 +148,7 @@ def auto_catch(func: Callable[..., dict]) -> Callable[..., dict]:
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            return {"exception": e}
+            return {"exception": Exception(str(e) + "\n\n" + str(traceback.format_exc()))}
 
     return wrapper
 

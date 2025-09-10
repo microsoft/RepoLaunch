@@ -178,10 +178,18 @@ class AzureOpenAIModel:
 
         from langchain_openai import AzureChatOpenAI
 
+        import sys
+        sys.path.append("../../")
+        
+        from cloudgpt_aoai import get_openai_token_provider
+
+        token_provider = get_openai_token_provider()
 
         self.llm = AzureChatOpenAI(  # Directly initialize the instance
             model=model_name,
-            temperature=temperature,
+            azure_ad_token_provider=token_provider,
+            api_version="2025-03-01-preview",
+            azure_endpoint="https://cloudgpt-openai.azure-api.net/",
         )
     
     def invoke(self, messages: List[BaseMessage]) -> BaseMessage:

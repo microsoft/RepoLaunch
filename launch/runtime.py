@@ -24,15 +24,30 @@ from typing_extensions import Self
 CMD_OUTPUT_PS1_BEGIN = "\n###PS1JSON###\n"
 CMD_OUTPUT_PS1_END = "\n###PS1END###"
 CMD_OUTPUT_METADATA_PS1_REGEX = re.compile(
-    f"^{CMD_OUTPUT_PS1_BEGIN.strip()}(.*?){CMD_OUTPUT_PS1_END.strip()}",
-    re.DOTALL | re.MULTILINE,
+    r"(?m)^\s*" + re.escape(CMD_OUTPUT_PS1_BEGIN.strip()) + r"\s*(.*?)\s*" + re.escape(CMD_OUTPUT_PS1_END.strip()),
+    re.DOTALL
 )
+ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 TIMEOUT_EXIT_CODE = 124
 
 MEM_LIMIT = "8g"
 CPU_CORES = 4
 
+
+VAR_PATTERNS = {
+    'exit_code': re.compile(r'"exit_code":\s*(-?\d+)\s*(?:,|\})'),
+    'username': re.compile(r'"username":\s*"([^"]*)"'),
+    'hostname': re.compile(r'"hostname":\s*"([^"]*)"'),
+    'working_dir': re.compile(r'"working_dir":\s*"([^"]*)"'),
+    'py_interpreter_path': re.compile(r'"py_interpreter_path":\s*"([^"]*)"'),
+}
+
+class RegWrapper:
+    def __init__(self, reg: str):
+        self.reg = reg
+    def group(self, idx=0):
+        return self.reg
 
 @dataclass
 class CmdOutputMetadata:
@@ -78,12 +93,26 @@ class CmdOutputMetadata:
     def matches_ps1_metadata(cls, output: str) -> list[re.Match[str]]:
         matches = []
         for match in CMD_OUTPUT_METADATA_PS1_REGEX.finditer(output):
+            scope = match.group(1).strip()
             try:
-                json.loads(match.group(1).strip())  # Try to parse as JSON
+                d = json.loads(scope)  # Try to parse as JSON
                 matches.append(match)
             except json.JSONDecodeError:
-                continue  # Skip if not valid JSON
+                d = cls.best_effort_match(scope)
+                if len(d) > 0:
+                    matches.append(match)
         return matches
+    
+    @classmethod
+    def best_effort_match(cls, scope: str) -> dict:
+        out = {}
+        for field, pattern in VAR_PATTERNS.items():
+            m = pattern.search(scope)
+            if m:
+                out[field] = m.group(1)
+            else:
+                out[field] = ""
+        return out
 
     @classmethod
     def from_ps1_match(cls, match: re.Match[str]) -> Self:
@@ -96,7 +125,10 @@ class CmdOutputMetadata:
         Returns:
             Self: CmdOutputMetadata instance with parsed values
         """
-        metadata = json.loads(match.group(1))
+        try:
+            metadata = json.loads(match.group(1)) 
+        except:
+            metadata = cls.best_effort_match(match.group(1))
         # Create a copy of metadata to avoid modifying the original
         processed = metadata.copy()
         # Convert numeric fields
@@ -158,7 +190,7 @@ class SetupRuntime:
     Manages a Docker container with persistent bash session, command execution,
     file operations, and container lifecycle management.
     """
-    def __init__(self, container: Container):
+    def __init__(self, container: Container, container_platform: str = "linux"):
         """
         Initialize runtime with an existing Docker container.
         
@@ -166,34 +198,110 @@ class SetupRuntime:
             container (Container): Docker container instance to manage
         """
         self.container = container
+        self.platform = container_platform
         self.sock = self.container.attach_socket(
             params={"stdin": 1, "stdout": 1, "stderr": 1, "stream": 1}
         )
-
         self.output_queue = queue.Queue()
         self._start_output_thread()
         self._clear_initial_prompt()
-        json_str = json.dumps(
-            {
-                "exit_code": "$?",
-                "username": r"\u",
-                "hostname": r"\h",
-                "working_dir": r"$(pwd)",
-                "py_interpreter_path": r'$(which python 2>/dev/null || echo "")',
-            },
-            indent=2,
-        ).replace('"', r"\"")
-        ps1 = CMD_OUTPUT_PS1_BEGIN + json_str + CMD_OUTPUT_PS1_END + "\n"
-        self.send_command(
-            f'export PROMPT_COMMAND=\'export PS1="{ps1}"\'; export PS2=""'
-        )
-        self.send_command("apt update && apt install -y git")
+        if self.platform == "windows":
+            self.send_command(r'''
+function prompt {
+  try { $ec = $global:LASTEXITCODE } catch { $ec = $null }
+  $ok = $ExecutionContext.SessionState.PSVariable.GetValue('?', $true)
+  if ($null -eq $ec) { $ec = if ($ok) { 0 } else { 1 } }
+  $u  = $env:USERNAME
+  $h  = $env:COMPUTERNAME
+  $wd = (Get-Location).Path
+  $pyCmd = Get-Command python -ErrorAction SilentlyContinue
+  $py = if ($pyCmd) {
+    if ($pyCmd.PSObject.Properties.Match('Path').Count -gt 0 -and $pyCmd.Path) { $pyCmd.Path }
+    elseif ($pyCmd.PSObject.Properties.Match('Source').Count -gt 0 -and $pyCmd.Source) { $pyCmd.Source }
+    else { '' }
+  } else { '' }
+  Write-Output ""
+  Write-Output "###PS1JSON###"
+  $obj = [ordered]@{
+    exit_code = $ec
+    username = $u
+    hostname = $h
+    working_dir = $wd
+    py_interpreter_path = $py
+  }
+  $obj | ConvertTo-Json -Compress
+  Write-Output "###PS1END###"
+  "PS $wd> "
+}
+''')
+            # 2) Ensure Git is installed (Chocolatey if possible; fallback to official silent installer).
+            #    - Chocolatey official install script: https://community.chocolatey.org/install.ps1
+            #    - git.install package params include /GitOnlyOnPath, /GitAndUnixToolsOnPath, /NoAutoCrlf, etc.
+            #    - Git for Windows silent flags are documented by the project itself.
+            self.send_command(r'''
+# Skip if git already present
+if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) {
+  try {
+    # Prefer Chocolatey (cleaner package mgmt)
+    if (-not (Get-Command choco.exe -ErrorAction SilentlyContinue)) {
+      Set-ExecutionPolicy Bypass -Scope Process -Force
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+      Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+    }
+
+    choco install git.install -y --no-progress --params '"/GitOnlyOnPath /NoAutoCrlf"'
+  }
+  catch {
+    Write-Host "Chocolatey install failed: $($_.Exception.Message)  -> falling back to Git for Windows installer"
+
+    # Fallback: Official Git for Windows silent install
+    $ProgressPreference = 'SilentlyContinue'
+    $temp = Join-Path $env:TEMP 'git-installer.exe'
+    # 'latest' link maintained by Git for Windows; resolves to current amd64 EXE
+    $url  = 'https://github.com/git-for-windows/git/releases/latest/download/Git-64-bit.exe'
+    try {
+      Invoke-WebRequest -Uri $url -OutFile $temp
+    } catch {
+      Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $temp
+    }
+
+    # Silent/unattended flags per Git for Windows docs (Inno Setup):
+    # /VERYSILENT /NORESTART /NOCANCEL /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS
+    # Optional components: icons, ext\reg\shellhere, assoc, assoc_sh, gitlfs, windowsterminal, scalar
+    Start-Process -FilePath $temp -ArgumentList `
+      '/VERYSILENT','/NORESTART','/NOCANCEL','/SP-','/CLOSEAPPLICATIONS','/RESTARTAPPLICATIONS',`
+      '/COMPONENTS="icons,ext\reg\shellhere,assoc,assoc_sh,gitlfs,windowsterminal,scalar"' `
+      -Wait
+  }
+
+  # Ensure PATH is updated in this running session (Chocolatey/Git installers update registry only)
+  $gitCmd = 'C:\Program Files\Git\cmd'
+  $gitBin = 'C:\Program Files\Git\bin'
+  if (Test-Path $gitCmd) { $env:PATH = "$gitCmd;$gitBin;$env:PATH" }
+}
+''')
+        elif self.platform == "linux":
+            json_str = json.dumps(
+                {
+                    "exit_code": "$?",
+                    "username": r"\u",
+                    "hostname": r"\h",
+                    "working_dir": r"$(pwd)",
+                    "py_interpreter_path": r'$(which python 2>/dev/null || echo "")',
+                },
+                indent=2,
+            ).replace('"', r"\"")
+            ps1 = CMD_OUTPUT_PS1_BEGIN + json_str + CMD_OUTPUT_PS1_END + "\n"
+            self.send_command(
+                f'export PROMPT_COMMAND=\'export PS1="{ps1}"\'; export PS2=""'
+            )
+            self.send_command("apt update && apt install -y git")
         self.stopped = False
 
     def _stream_output(self):
         while True:
             try:
-                output = self.sock._sock.recv(4096)
+                output = self._recv_bytes(4096)
                 if not output:
                     break
                 self.output_queue.put(output)
@@ -201,7 +309,7 @@ class SetupRuntime:
                 print(f"Connection error in _stream_output: {e}")
                 break
             except Exception as e:
-                print(f"Unexpected error in _stream_output: {e}")
+                # print(f"Unexpected error in _stream_output: {e}")
                 break
 
     def _start_output_thread(self):
@@ -221,11 +329,14 @@ class SetupRuntime:
             try:
                 chunk = self.output_queue.get(timeout=0.1)
                 accumulated_output += chunk.decode("utf-8", errors="ignore")
-                ps1_matches = CmdOutputMetadata.matches_ps1_metadata(accumulated_output)
+                # PSReadLine injects ANSI + cursor control; normalize before matching
+                accumulated_clean = ANSI_ESCAPE.sub("", accumulated_output).replace("\r", "")
+                ps1_matches = CmdOutputMetadata.matches_ps1_metadata(accumulated_clean)
                 if ps1_matches:
                     break
             except queue.Empty:
                 continue
+        accumulated_output = ANSI_ESCAPE.sub("", accumulated_output).replace("\r", "")
         ps1_matches = CmdOutputMetadata.matches_ps1_metadata(accumulated_output)
         metadata = (
             CmdOutputMetadata.from_ps1_match(ps1_matches[-1]) if ps1_matches else None
@@ -251,21 +362,53 @@ class SetupRuntime:
             output_segments.append(output_segment)
         return "\n".join(output_segments) + "\n" if output_segments else ""
 
+    def _recv_bytes(self, n=4096) -> bytes:
+        # Prefer the public API on whatever object the SDK returns
+        for m in ("recv", "read"):
+            if hasattr(self.sock, m):
+                return getattr(self.sock, m)(n)
+        # Last-resort fallback for odd wrappers that still expose ._sock
+        if hasattr(self.sock, "_sock"):
+            for m in ("recv", "read"):
+                if hasattr(self.sock._sock, m):
+                    return getattr(self.sock._sock, m)(n)
+        raise TypeError(f"Don't know how to read from {type(self.sock).__name__}")
+
+    def _send_bytes(self, data: bytes) -> None:
+        if hasattr(self.sock, "_sock"):
+            for m in ("send", "sendall", "write"):
+                if hasattr(self.sock._sock, m):
+                    getattr(self.sock._sock, m)(data)
+                    return
+        for m in ("send", "sendall", "write"):
+            if hasattr(self.sock, m):
+                getattr(self.sock, m)(data)
+                return
+
+        raise TypeError(f"Don't know how to write to {type(self.sock).__name__}")
+
     def send_command(self, command: str, timeout: float = 20 * 60) -> CommandResult:
-        if not command.endswith("\n"):
-            command += "\n"
+        # Normalize newline semantics for interactive shells
+        if self.platform == "windows":
+            # For PowerShell, ensure CRLF line endings
+            command = command.strip().replace("\r\n", "\n").replace("\n", "\r\n")
+            # Add extra CRLF for multi-line blocks to signal completion
+            command += "\r\n\r\nprompt\r\n\r\n"
+        else:
+            if not command.endswith("\n"):
+                command += "\n"
 
         while not self.output_queue.empty():
             self.output_queue.get()
 
-        self.sock._sock.send(command.encode())
+        self._send_bytes(command.encode())
 
         output, metadata = self._read_raw_output(timeout=timeout)
         if metadata is not None:
             return CommandResult(output=output, metadata=metadata)
 
         # handle timeout
-        self.sock._sock.send(b"\x03")
+        self._send_bytes(b"\x03")
 
         kill_timeout = 5.0
         kill_output, kill_metadata = self._read_raw_output(timeout=kill_timeout)
@@ -318,7 +461,8 @@ class SetupRuntime:
         tar_stream.seek(0)
 
         self.container.put_archive(path=dest, data=tar_stream.read())
-        self.send_command(f"chown -R root:root {dest}")
+        if self.platform == "linux":
+            self.send_command(f'chown -R root:root "{dest}"')
 
     def cleanup(self) -> None:
         if self.stopped:
@@ -331,6 +475,8 @@ class SetupRuntime:
             print(f"Failed to stop container: {e}")
 
     def commit(self, image_name: str, tag: str = "latest", push: bool = False) -> str:
+        self.container.stop()
+
         self.container.commit(
             repository=image_name,
             tag=tag,
@@ -342,6 +488,7 @@ class SetupRuntime:
             client.images.push(image_name, tag=tag)
             print(f"Image {image_name}:{tag} pushed successfully.")
 
+        self.container.start()
         return f"{image_name}:{tag}"
 
     def __del__(self):
@@ -369,6 +516,7 @@ def pull_image(image_name: str) -> bool:
 def start_session(
     image_name: str,
     instance: dict,
+    platform: str = "linux",
 ) -> SetupRuntime:
     """
     Start a Docker container session for repository testing.
@@ -376,6 +524,7 @@ def start_session(
     Args:
         image_name (str): Base Docker image name
         instance (dict): SWE-bench instance data with repo info
+        platform: the platform of the container, linux or windows
         
     Returns:
         SetupRuntime: Configured runtime session ready for command execution
@@ -392,25 +541,42 @@ def start_session(
     client = docker.from_env(timeout=600)
     container_id = instance["instance_id"]
     container_name = f"git-launch-{container_id}-{str(uuid.uuid4())[:4]}"
+    info = client.version()
+    engine_os = (info.get("Os") or info.get("OSType") or "").lower() 
+    # which operating system this code is running on, note windows can run linux containers, so engine_os != (container) platform
+    extra_hosts = {"host.docker.internal": "host-gateway"} if "linux" in engine_os else None
+    
+    if platform == "windows":
+        shell_command = r"powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -NoExit"
+        working_dir = r"C:\testbed"
+        run_kwargs = {
+            "cpu_count": CPU_CORES,  # cpu_quota is Linux-only
+            "mem_limit": MEM_LIMIT,
+        }
+    else:
+        shell_command = "/bin/bash"
+        working_dir = "/testbed"
+        run_kwargs = {
+            "cpu_quota": int(CPU_CORES * 100000),
+            "mem_limit": MEM_LIMIT,
+        }
+
     container = client.containers.run(
         image_name,
         name=container_name,
-        command="/bin/bash",
+        command=shell_command,
         stdin_open=True,
         tty=True,
         detach=True,
         environment={
             "TERM": "xterm-mono",
         },
-        working_dir="/testbed",
-        extra_hosts={"host.docker.internal": "host-gateway"},
-        # resources
-        mem_limit=MEM_LIMIT,
-        cpu_quota=int(CPU_CORES * 100000),
-        # volumes={str(workspace.absolute()): {"bind": "/workspace", "mode": "rw"}},
+        working_dir=working_dir,
+        extra_hosts=extra_hosts,
+        **run_kwargs,
     )
 
-    session = SetupRuntime(container)
+    session = SetupRuntime(container, container_platform=platform)
 
     # We avoid copying due to performance issues
     # session.copy_dir_to_container(str(workspace), "/workspace")
@@ -418,69 +584,17 @@ def start_session(
     url = f'https://github.com/{instance["repo"]}.git'
     base_commit = instance["base_commit"]
 
-    session.send_command(
-        f"git clone {url} /testbed && cd /testbed && git reset --hard {base_commit}"
+    if platform == "windows":
+        res: CommandResult = session.send_command(
+            r'git clone {url} "C:\testbed"; cd "C:\testbed"; git reset --hard {base}'.format(
+                url=url, base=base_commit
+        )
     )
+    else: 
+        res: CommandResult = session.send_command(
+            f"git clone {url} /testbed && cd /testbed && git reset --hard {base_commit}"
+        )
+    
 
     return session
 
-
-if __name__ == "__main__":
-    client = docker.from_env()
-    container = client.containers.run(
-        "python",
-        name="launch-runtime-test",
-        command="/bin/bash",
-        stdin_open=True,
-        tty=True,
-        detach=True,
-        environment={
-            "TERM": "xterm-mono",
-        },
-    )
-    docker_tty = SetupRuntime(container)
-    try:
-        # Test 1: Basic command with prompt parsing
-        result = docker_tty.send_command('echo "Hello World"')
-        assert result.metadata.exit_code == 0
-        assert result.metadata.working_dir == "/"
-        assert result.metadata.username == "root"
-        print(result.output)
-
-        # Test 2: Command with multiple lines
-        result = docker_tty.send_command('for i in {1..3}; do echo "Line $i"; done')
-        assert result.metadata.exit_code == 0
-        assert result.metadata.working_dir == "/"
-        print(result.output)
-
-        # Test 3: Change directory and verify prompt update
-        result = docker_tty.send_command("cd /tmp && pwd")
-        assert (
-            result.metadata.working_dir == "/tmp"
-        ), f"Working directory should be /tmp, got {result.metadata.working_dir}"
-        assert result.metadata.exit_code == 0
-        print(result.output)
-
-        # Test 4: Command with error
-        result = docker_tty.send_command("ls /nonexistent")
-        assert (
-            "No such file or directory" in result.output
-        ), f"Expected error message not found in '{result.output}'"
-        assert (
-            result.metadata.exit_code == 2
-        ), f"Expected exit code 2, got {result.metadata.exit_code}"
-        assert (
-            result.metadata.working_dir == "/tmp"
-        ), "Working directory should remain /tmp"
-        print(result.output)
-
-        # Test 5: Timeout
-        start_time = time.time()
-        result = docker_tty.send_command("sleep 5", timeout=2)
-        end_time = time.time()
-        assert (
-            end_time - start_time < 3
-        ), f"Command should have timed out, took {end_time - start_time} seconds"
-        print(result.to_observation())
-    finally:
-        docker_tty.cleanup()

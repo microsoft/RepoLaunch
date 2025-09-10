@@ -3,6 +3,7 @@ Defines the workflow graph for repository environment setup and verification.
 """
 import json
 import os
+import shutil
 import time
 from functools import partial
 
@@ -47,21 +48,6 @@ def save_result(state: AgentState) -> dict:
     if not exception and not state.get("success", False):
         exception = "Launch failed"
 
-    with open(path, "w") as f:
-        f.write(
-            json.dumps(
-                {
-                    "instance_id": instance_id,
-                    "base_image": state["base_image"],
-                    "setup_commands": state["setup_commands"],
-                    "test_commands": state["test_commands"],
-                    "duration": duration,
-                    "completed": state.get("success", False),
-                    "exception": exception,
-                },
-                indent=2,
-            )
-        )
     logger.info("Result saved to: " + str(path))
     if state["exception"]:
         logger.error(f"!!! Exception: {state['exception']}")
@@ -81,35 +67,54 @@ def save_result(state: AgentState) -> dict:
     if state.get("success", False):
         logger.info("Setup completed successfully, now commit into swebench image.")
 
-        ARCH = "x86_64"
-        NAMESPACE = "starryzhang"
-
-        key = f"sweb.eval.{ARCH}.{instance_id.lower()}"
-        key = f"{NAMESPACE}/{key}".replace("__", "_1776_")
-
+        key = state["image_prefix"]
+        tag = f"{instance_id}_{state["platform"]}"
         try:
-            session.commit(image_name=key, push=False)
-            logger.info(f"Image {key} committed successfully.")
+            session.commit(image_name=key, tag=tag, push=False)
+            logger.info(f"Image {key}:{tag} committed successfully.")
+            state["docker_image"] = f"{key}:{tag}"
         except Exception as e:
-            logger.error(f"Failed to commit image: {e}")
+            raise Exception(f"Failed to commit image: {e}. If timeout please commit and clean the container manually.")
 
+    # in case unexpected error escapes previous clean-up
+    if os.path.exists(state["repo_root"]):
+        shutil.rmtree(state["repo_root"], ignore_errors=True)
     try:
         session.cleanup()
     except Exception as e:
         logger.error(f"Failed to cleanup session: {e}")
+
+    with open(path, "w") as f:
+        f.write(
+            json.dumps(
+                {
+                    "instance_id": instance_id,
+                    "base_image": state["base_image"],
+                    "docker_image": state.get("docker_image", None),
+                    "setup_commands": state["setup_commands"],
+                    "test_commands": state["test_commands"],
+                    "duration": duration,
+                    "completed": state.get("success", False),
+                    "exception": exception,
+                },
+                indent=2,
+            )
+        )
 
     return {
         "session": None,
     }
 
 
-def define_workflow(max_trials: int = 1, max_steps: int = 20):
+def define_workflow(max_trials: int = 3, max_steps_setup: int = 20, max_steps_verify: int = 20, timeout: int = 30):
     """
     Define the workflow graph for repository environment setup.
     
     Args:
         max_trials (int): Maximum number of setup/verify retry attempts
-        max_steps (int): Maximum steps allowed for setup and verify agents
+        max_steps_setup (int): Maximum steps allowed for setup 
+        max_steps_verify (int): Maximum steps allowed for verify 
+        timeout (int): timeout after ? minutes only for setup step
         
     Returns:
         Compiled workflow graph ready for execution
@@ -120,9 +125,12 @@ def define_workflow(max_trials: int = 1, max_steps: int = 20):
     graph.add_node("locate_related_file", locate_related_file)
     graph.add_node("select_base_image", select_base_image)
     graph.add_node("start_bash_session", start_bash_session)
-    setup_agent = partial(setup, max_steps)
+    setup_agent = partial(setup, 
+                          max_steps = max_steps_setup,
+                          timeout = timeout)
     graph.add_node("setup", setup_agent)
-    verify_agent = partial(verify, max_steps)
+    verify_agent = partial(verify, 
+                           max_steps = max_steps_verify)
     graph.add_node("verify", verify_agent)
     graph.add_node("save_result", save_result)
 
@@ -133,8 +141,8 @@ def define_workflow(max_trials: int = 1, max_steps: int = 20):
     graph.add_edge("setup", "verify")
     graph.add_conditional_edges(
         "verify",
-        lambda x: x.get("success") or x["trials"] == max_trials or x["exception"],
-        {True: "save_result", False: "setup"},
+        lambda x: "return" if bool(x.get("success", False) or (x["trials"] == max_trials) or x.get("exception", False)) else "continue",
+        {"return": "save_result", "continue": "setup"},
     )
     graph.add_edge("save_result", END)
     return graph.compile()

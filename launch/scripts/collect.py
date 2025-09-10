@@ -5,6 +5,7 @@ from fire import Fire
 def main(
     playground,
     output_jsonl,
+    platform = "linux"
 ):
     playground = Path(playground)
     swe_instances = []
@@ -29,7 +30,7 @@ def main(
             "setup_cmds": result["setup_commands"],
             "test_cmds": result["test_commands"],
             "log_parser": result.get("log_parser", "pytest"),
-            "docker_image": f"starryzhang/sweb.eval.x86_64.{instance["instance_id"].lower()}".replace("__", "_1776_"),
+            "docker_image": result.get("docker_image", f"karinali20011210/migbench:{instance["instance_id"]}_{platform}"),
         }
 
         swe_instances.append(swe_instance)

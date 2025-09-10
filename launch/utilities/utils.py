@@ -6,12 +6,10 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from git import Repo
-
 from launch.utilities.config import Config
 from launch.utilities.llm import LLMProvider
 from launch.utilities.logger import setup_logger, clean_logger
-
+import subprocess
 
 @dataclass
 class WorkSpace:
@@ -38,6 +36,12 @@ class WorkSpace:
     llm_log_folder: Path
     date: str = None
     language: str = "python"
+    platform: str = "linux"
+    max_trials: str = 3
+    max_steps_setup: int = 20
+    max_steps_verify: int = 20
+    timeout: int = 30
+    image_prefix: str = "repolaunch/dev"
     
     def cleanup(self) -> None:
         """Clean up workspace resources."""
@@ -60,8 +64,22 @@ def prepare_repo(instance: dict, repo_root: Path) -> Path:
     if repo_root.exists():
         return repo_root
 
-    repo = Repo.clone_from(url, repo_root)
-    repo.git.reset("--hard", base_commit)
+    # Clone repo using subprocess
+    subprocess.run(
+        ["git", "clone", url, str(repo_root)],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+
+    # Reset to base_commit using subprocess
+    subprocess.run(
+        ["git", "reset", "--hard", base_commit],
+        cwd=str(repo_root),
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
 
     return repo_root
 
@@ -121,9 +139,15 @@ def prepare_workspace(
         instance_id=instance["instance_id"],
         language=language,
         repo_root=repo_root,
+        image_prefix=config.image_prefix,
         instance_path=instance_path,
         result_path=result_path,
         logger=logger,
         llm_log_folder=llm_log_folder,
         llm=llm,
+        platform=config.platform,
+        max_trials=config.max_trials,
+        max_steps_setup=config.max_steps_setup,
+        max_steps_verify=config.max_steps_verify,
+        timeout=config.timeout
     )

@@ -5,6 +5,8 @@ This module provides functionality to process SWE-bench instances in parallel,
 setting up environments and executing launches with progress tracking.
 """
 import json
+import os
+import shutil
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -23,7 +25,6 @@ from launch.utilities.config import load_config
 from launch.utilities.utils import check_workspace_exists, prepare_workspace
 
 lock = threading.Lock()
-
 
 def process_instance(instance, config, workspace_root):
     """
@@ -49,9 +50,8 @@ def process_instance(instance, config, workspace_root):
         result = json.loads((result_path).read_text())
         if result["completed"]:
             return "success", instance["instance_id"], None
-        else:
-            exception = result.get("exception", "")
-            return "fail", instance["instance_id"], exception
+        elif result.get("exception", "") == "Launch failed":
+            return "fail", instance["instance_id"], "Launch failed"
 
     try:
         workspace = prepare_workspace(workspace_root, instance, config)
@@ -60,13 +60,15 @@ def process_instance(instance, config, workspace_root):
         if result["completed"]:
             return "success", instance["instance_id"], None
         else:
-            exception = result.get("exception", "")
             return (
                 "fail",
                 instance["instance_id"],
                 result.get("exception", "Unknown error"),
             )
     except Exception as e:
+        # in case unexpected error escapes previous clean-up
+        if os.path.exists(workspace.repo_root.resolve()):
+            shutil.rmtree(workspace.repo_root.resolve(), ignore_errors=True)
         return "fail", instance["instance_id"], str(e)
 
 
