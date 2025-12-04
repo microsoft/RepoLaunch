@@ -39,7 +39,7 @@ def logged_invoke(invoke_func):
 
         response: BaseMessage = invoke_func(self, messages)
 
-        with open(log_file_path, "w", encoding="utf-8") as f:
+        with open(log_file_path, "w") as f:
             f.write("##### LLM INPUT #####\n")
             f.write("\n".join([m.pretty_repr() for m in messages]))
             f.write("\n##### LLM OUTPUT #####\n")
@@ -177,7 +177,6 @@ class AzureOpenAIModel:
         self.temperature = temperature
 
         from langchain_openai import AzureChatOpenAI
-
 
         self.llm = AzureChatOpenAI(  # Directly initialize the instance
             model=model_name,

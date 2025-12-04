@@ -87,11 +87,11 @@ def save_result(state: AgentState) -> dict:
         key = f"sweb.eval.{ARCH}.{instance_id.lower()}"
         key = f"{NAMESPACE}/{key}".replace("__", "_1776_")
 
-        try:
-            session.commit(image_name=key, push=False)
-            logger.info(f"Image {key} committed successfully.")
-        except Exception as e:
-            logger.error(f"Failed to commit image: {e}")
+        # try:
+        #     session.commit(image_name=key, push=False)
+        #     logger.info(f"Image {key} committed successfully.")
+        # except Exception as e:
+        #     logger.error(f"Failed to commit image: {e}")
 
     try:
         session.cleanup()
