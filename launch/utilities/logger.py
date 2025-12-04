@@ -25,8 +25,8 @@ def setup_logger(instance_id: str, log_file: Path, printing: bool = True) -> log
     logger = logging.getLogger(instance_id)
     logger.setLevel(logging.INFO)
     log_file.parent.mkdir(parents=True, exist_ok=True)
-    if log_file.exists():
-        log_file.unlink()
+    # if log_file.exists():
+    #    log_file.unlink()
     formatter = logging.Formatter("%(asctime)s - %(message)s")
     fh = logging.FileHandler(log_file, encoding="utf-8")
     fh.setLevel(logging.INFO)

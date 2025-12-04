@@ -4,9 +4,12 @@ Utility functions for workspace and repository management.
 import json
 import logging
 from dataclasses import dataclass
+import os
 from pathlib import Path
+import threading
 
 from launch.utilities.config import Config
+from launch.utilities.get_repo_structure import view_repo_structure
 from launch.utilities.llm import LLMProvider
 from launch.utilities.logger import setup_logger, clean_logger
 import subprocess
@@ -34,12 +37,14 @@ class WorkSpace:
     logger: logging.Logger
     llm: LLMProvider
     llm_log_folder: Path
+    repo_structure: str
     date: str = None
     language: str = "python"
     platform: str = "linux"
     max_trials: str = 3
     max_steps_setup: int = 20
     max_steps_verify: int = 20
+    max_steps_organize: int = 20
     timeout: int = 30
     image_prefix: str = "repolaunch/dev"
     
@@ -99,7 +104,7 @@ def check_workspace_exists(workspace_root: Path, instance: dict) -> bool:
 
 
 def prepare_workspace(
-    workspace_root: Path, instance: dict, config: Config
+    workspace_root: Path, instance: dict, config: Config, log_file: str="setup.log"
 ) -> WorkSpace:
     """
     Prepare a complete workspace for processing a SWE-bench instance.
@@ -112,7 +117,7 @@ def prepare_workspace(
     Returns:
         WorkSpace: Fully configured workspace ready for processing
     """
-    instance_folder = workspace_root / instance["instance_id"]
+    instance_folder = workspace_root / "playground" / instance["instance_id"]
     instance_folder.mkdir(parents=True, exist_ok=True)
     result_path = instance_folder / "result.json"
     instance_path = instance_folder / "instance.json"
@@ -125,9 +130,19 @@ def prepare_workspace(
     )
     with open(instance_path, "w") as f:
         json.dump(instance, f, indent=2)
+    
+    repo_structure = None
+    if os.path.exists(result_path):
+        with open(result_path) as f:
+            history = f.read()
+        if history.strip():
+            history = json.loads(history)
+            repo_structure = history.get("repo_structure", None)
 
     repo_root = prepare_repo(instance, instance_folder / "repo")
-    log_file = instance_folder / "setup.log"
+    if not repo_structure:
+        repo_structure = view_repo_structure(repo_root)
+    log_file = instance_folder / log_file
     logger = setup_logger(
         instance["instance_id"], log_file, printing=config.print_to_console
     )
@@ -142,6 +157,7 @@ def prepare_workspace(
         image_prefix=config.image_prefix,
         instance_path=instance_path,
         result_path=result_path,
+        repo_structure=repo_structure,
         logger=logger,
         llm_log_folder=llm_log_folder,
         llm=llm,
@@ -149,5 +165,31 @@ def prepare_workspace(
         max_trials=config.max_trials,
         max_steps_setup=config.max_steps_setup,
         max_steps_verify=config.max_steps_verify,
+        max_steps_organize=config.max_steps_organize,
         timeout=config.timeout
     )
+
+
+
+def safe_read_result(result: str, result_path: Path, lock: threading.Lock) -> dict:
+    '''
+    Though this function looks ugly,
+    it is used to guarantee result.json is saved.
+    Because due to some minor bugs in Python thread concurrency,
+    result.json is not saved in the 'save' step successfully sometimes.
+    '''
+    with lock:
+        if result_path.exists():
+            saved_result = result_path.read_text()
+            if saved_result.strip():
+                return json.loads(saved_result)
+    if not result.strip():
+        return {
+            "completed": False, 
+            "organize_completed": False, 
+            "exception": "Result Empty Error!"
+        }
+    with lock:
+        with open(result_path, "w") as f:
+            f.write(result)
+    return json.loads(result)

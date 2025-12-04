@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
 
-from launch.runtime import SetupRuntime
+from launch.core.runtime import SetupRuntime
 from launch.utilities.timemachine import start_timemachine
 
 
@@ -31,6 +31,11 @@ class LanguageHandler(ABC):
     @abstractmethod
     def cleanup_environment(self, session: SetupRuntime, server: Optional[Any] = None):
         """Cleanup language-specific resources."""
+        pass
+
+    @abstractmethod
+    def get_test_cmd_instructions(self) -> str:
+        """Get language-specific test command instructions for the agent."""
         pass
 
 
@@ -70,6 +75,27 @@ class PythonHandler(LanguageHandler):
             except Exception:
                 pass
 
+    def get_test_cmd_instructions(self) -> str:
+        return """
+Example Test Commands for Python Projects
+- For **pytest**, run:
+  pytest --json-report --json-report-file=reports/pytest-results.json
+  (Requires the 'pytest-json-report' plugin: install via 'pip install pytest-json-report'.)
+- For **unittest (built-in)**, run:
+  python -m unittest discover -v | tee reports/unittest-results.txt
+  # Then optionally convert text to JSON using a script or tool such as 'unittest-xml-reporting':
+  python -m xmljson reports/unittest-results.xml > reports/unittest-results.json
+- For **nose2**, run:
+  nose2 --plugin nose2.plugins.json --json-report-file reports/nose2-results.json
+  (Install the JSON plugin via 'pip install nose2[json-report]'.)
+- For **behave (BDD)**, run:
+  behave --format json.pretty --outfile reports/behave-results.json
+- For **robotframework**, run:
+  robot --output reports/output.xml --log reports/log.html --report reports/report.html
+- For **pytest-bdd**, run:
+  pytest --json-report --json-report-file=reports/pytest-bdd-results.json
+"""
+
 
 class JavaScriptHandler(LanguageHandler):
     """Handler for JavaScript/Node.js projects."""
@@ -102,6 +128,24 @@ class JavaScriptHandler(LanguageHandler):
         pass
 
 
+    def get_test_cmd_instructions(self) -> str:
+        return """
+Example Test Commands for JavaScript Frameworks:
+- For **Jest** framework, run:
+  npx jest --json --outputFile=reports/jest-results.json
+- For **Mocha** framework, run:
+  npx mocha --reporter json > reports/mocha-results.json
+- For **Vitest** framework, run:
+  npx vitest run --reporter=json > reports/vitest-results.json
+- For **AVA** framework, run:
+  npx ava --tap | npx tap-json > reports/ava-results.json
+- For **Playwright** framework, run:
+  npx playwright test --reporter=json > reports/playwright-results.json
+- For **Cypress** framework, run:
+  npx cypress run --reporter json --reporter-options "output=reports/cypress-results.json"
+"""
+
+
 class TypeScriptHandler(JavaScriptHandler):
     """Handler for TypeScript projects (inherits from JavaScript)."""
     
@@ -128,7 +172,10 @@ class RustHandler(LanguageHandler):
         return "rust"
     
     def base_images(self, platform = "linux") -> List[str]:
-        return [f"rust:1.7{v}" for v in range(0, 10)]
+        if platform == "linux": 
+            return [f"rust:1.{v}" for v in range(70, 91)]
+        if platform == "windows":
+            return [f"karinali20011210/rust-windows:1.{v}" for v in [70, 75, 80, 85, 90]]
     
     def setup_environment(self, session: SetupRuntime, date: Optional[str] = None) -> Optional[Any]:
         """Setup Rust environment."""
@@ -149,6 +196,24 @@ class RustHandler(LanguageHandler):
         """Cleanup Rust environment."""
         # No special cleanup needed for Rust
         pass
+
+    def get_test_cmd_instructions(self) -> str:
+        return """
+Example Test Commands for Rust Projects
+- For **Standard cargo test**, run:
+  cargo test -- --format json > reports/cargo-test-results.json
+  (Rust's built-in test harness supports '--format json' to emit structured test output.)
+- For **cargo nextest** (fast parallel test runner), run:
+  cargo nextest run --message-format json > reports/nextest-results.json
+  (Nextest produces detailed structured JSON for each test event — ideal for CI systems.)
+- For **libtest (Rust's built-in test framework)**, run:
+  cargo test -- --format json --report-time > reports/libtest-results.json
+- For **Cucumber-rs (BDD-style testing)**, run:
+  cargo test --features "cucumber" -- --format json > reports/cucumber-results.json
+  (Or if using the standalone binary:)
+  cargo install cucumber --version
+  cucumber --format json --output reports/cucumber-results.json
+"""
 
 
 class JavaHandler(LanguageHandler):
@@ -183,6 +248,25 @@ class JavaHandler(LanguageHandler):
         """Cleanup Java environment."""
         # No special cleanup needed for Java
         pass
+
+    def get_test_cmd_instructions(self) -> str:
+        return """
+Example Test Commands for Java Projects
+- For **JUnit (via Maven)**, run:
+  mvn test -DtrimStackTrace=false -DoutputFormat=json -DjsonReport=reports/junit-results.json
+  (If using the Surefire plugin, you can also convert XML to JSON using tools like 'xq' or 'xml2json'.)
+- For **JUnit (via Gradle)**, run:
+  gradle test --tests "*" --info --test-output-json > reports/gradle-junit-results.json
+- For **TestNG (via Maven)**, run:
+  mvn test -DsuiteXmlFile=testng.xml -Dlistener=org.uncommons.reportng.HTMLReporter,org.uncommons.reportng.JUnitXMLReporter
+  (To get JSON, use the testng-json-listener library:
+   mvn test -Dlistener=io.github.jsonlistener.JSONReporter -DjsonOutput=reports/testng-results.json)
+- For **Cucumber (Java BDD)**, run:
+  mvn test -Dcucumber.plugin="json:reports/cucumber-results.json"
+- For **Spock (Groovy on JVM)**, run:
+  gradle test --tests "*" --info --test-output-json > reports/spock-results.json
+  (Spock runs on the JUnit platform; you can use JUnit 5 JSON report plugins for structured output.)
+"""
 
 
 class GoHandler(LanguageHandler):
@@ -224,6 +308,21 @@ class GoHandler(LanguageHandler):
         # No special cleanup needed for Go
         pass
 
+    def get_test_cmd_instructions(self) -> str:
+        return """
+Example Test Commands for Go Projects:
+- For **Standard go test**, run:
+  go test -v ./... -json > reports/go-test-results.json
+- For **gotestsum** (improved test output tool), run:
+  gotestsum --format=json --jsonfile=reports/gotestsum-results.json
+- For **richgo** (colorized go test output), run:
+  richgo test -v ./... | tee reports/richgo-results.json
+- For **ginkgo** (BDD-style testing framework), run:
+  ginkgo -r --json-report=reports/ginkgo-results.json
+- For **go-convey** (web-based test reporting), run:
+  goconvey -workDir=. -cover -jsonOutput=reports/goconvey-results.json
+"""
+
 
 class CSharpHandler(LanguageHandler):
     """Handler for C# projects."""
@@ -264,6 +363,22 @@ class CSharpHandler(LanguageHandler):
         # No special cleanup needed for C#
         pass
 
+    def get_test_cmd_instructions(self) -> str:
+        return """
+Example Test Commands for C# (.NET) Projects
+- For **xUnit**, run:
+  dotnet test --logger "json;LogFileName=reports/xunit-results.json"
+- For **NUnit**, run:
+  dotnet test --logger "json;LogFileName=reports/nunit-results.json"
+  (Requires .NET 6+ with the built-in JSON logger, or install 'Microsoft.TestPlatform.Extensions.JsonLogger' if missing.)
+- For **MSTest**, run:
+  dotnet test --logger "json;LogFileName=reports/mstest-results.json"
+- For **SpecFlow (BDD)**, run:
+  dotnet test --logger "json;LogFileName=reports/specflow-results.json"
+  (SpecFlow tests run through xUnit/NUnit/MSTest, so the JSON logger works the same.)
+- For **Coverlet (code coverage)**, run:
+  dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=json /p:CoverletOutput=reports/coverage.json
+"""
 
 
 class CppHandler(LanguageHandler):
@@ -285,8 +400,9 @@ class CppHandler(LanguageHandler):
             ]
         if platform == "windows":
             return [
-                "karinali20011210/windows_server:ltsc2019",
-                "karinali20011210/windows_server:ltsc2022"
+                "karinali20011210/windows_server:ltsc2019_cmake_ninja_only",
+                "karinali20011210/windows_server:ltsc2022_cmake_ninja_only",
+                "karinali20011210/windows_server:ltsc2025_cmake_ninja_vsbuildtools_cl_msbuild"
             ]
     
     def setup_environment(self, session: SetupRuntime, date: Optional[str] = None) -> Optional[Any]:
@@ -318,7 +434,48 @@ class CppHandler(LanguageHandler):
 - For other c/cpp repository variants not covered, decide how to build the repository yourself.
 """
         if platform == "windows":
-            return r"""
+            if base_image == "karinali20011210/windows_server:ltsc2025_cmake_ninja_vsbuildtools_cl_msbuild":
+                return r"""
+### C/C++ Specific Instructions:
+This is a windows server image with git, choco, cmake, ninja, and vsbuildtools2022 with cl.exe and msbuild installed.
+
+Test these packages with: git --version; choco --version; cmake --version; ninja --version; cl.exe; msbuild --version;
+The VSbuildtools2022 has already been installed by: choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.NativeDesktop --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621 --add Microsoft.VisualStudio.Component.VC.CMake.Project --includeRecommended";
+
+You need to figure out how to install other dependencies yourself. You can use web search if you are not sure.
+choco is the preferred way to install packages. For example, choco install -y mingw, choco install -y llvm
+Some dependencies may not be supported by choco and have to be installed through its official source. For example, git clone https://github.com/microsoft/vcpkg.git; .\vcpkg\bootstrap-vcpkg.bat; $env:VCPKG_ROOT = "C:\path\to\vcpkg"; $env:PATH = "$env:VCPKG_ROOT;$env:PATH";
+
+Some dependency install examples using choco:
+
+-- Qt with MSVC: 
+(installing MSVC has been done)
+choco install -y aqt --no-progress; refreshenv; 
+aqt install-qt --outputdir C:\Qt windows desktop 6.8.0 win64_msvc2019_64;
+aqt install-tool --outputdir C:\Qt windows desktop tools_qtcreator;
+aqt install-tool --outputdir C:\Qt windows desktop tools_cmake;
+
+-- Qt with MinGW: 
+choco install -y qt6-base-dev mingw; refreshenv;
+
+The installed packages often do not know the existence of each other. You need to link them manually if errors occur.
+
+Examples to build a repo:
+- Configure with CMake:
+  - `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=23`
+    - Use 20/17/11 if your project requires it
+    - Force a compiler if needed:
+      - GCC: `-DCMAKE_CXX_COMPILER=g++`
+      - Clang: `-DCMAKE_CXX_COMPILER=clang++`
+- Build the project:
+  - `cmake --build build --parallel`
+- Run tests:
+  - `ctest --test-dir build --output-on-failure`
+- Run the app:
+  - `./build/<target_name>`
+"""
+            else:
+                return r"""
 ### C/C++ Specific Instructions:
 This is a minimal windows server image with only git, choco, cmake and ninja installed.
 You need to figure out how to install the required dependencies yourself. You can use web search if you are not sure.
@@ -328,27 +485,18 @@ Some dependencies may not be supported by choco and have to be installed through
 Some dependency install examples using choco:
 
 -- MSVC dependencies: 
+# Download visualstudio build tools
 choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.NativeDesktop --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621 --add Microsoft.VisualStudio.Component.VC.CMake.Project --includeRecommended"
-# Add MSBuild to PATH (as mentioned in gist.github.com)
-$buildToolsPath = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin"
-$currentPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
-if ($currentPath -notlike "*$buildToolsPath*") {
-    [Environment]::SetEnvironmentVariable("Path", "$currentPath;$buildToolsPath", "Machine")
-}
+# Add MSBuild and cl.exe to PATH 
+$msbuildToolsPath = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin";
+$clexePath = Get-ChildItem "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\*\bin\Hostx64\x64" | Select-Object -First 1 -ExpandProperty FullName;
+$currentPath = [Environment]::GetEnvironmentVariable("Path", "Machine");
+[Environment]::SetEnvironmentVariable("Path", "$currentPath;$msbuildToolsPath;$clexePath", "Machine");
+$env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine");
+# Check existance
+msbuild -version; 
+cl.exe;
 
-# Refresh environment variables in current session
-$env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine")
-
-# Verify cl.exe is available
-& "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\*\bin\Hostx64\x64\cl.exe" 2>$null
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "✅ cl.exe found and working"
-} else {
-    Write-Host "❌ cl.exe not found or not working"
-}
-
-# Verify MSBuild
-msbuild -version
 
 -- Qt with MSVC: 
 (install MSVC as above)
@@ -381,6 +529,24 @@ Examples to build a repo:
         """Cleanup C/C++ environment."""
         # No special cleanup needed for C++
         pass
+
+    def get_test_cmd_instructions(self) -> str:
+        return """
+Example Test Commands for C / C++ Projects
+- For **GoogleTest (gtest)**, run:
+  ./your_test_binary --gtest_output=json:reports/gtest-results.json
+- For **Catch2**, run:
+  ./your_test_binary --reporter json > reports/catch2-results.json
+- For **doctest**, run:
+  ./your_test_binary --reporters=json > reports/doctest-results.json
+- For **CppUTest**, run:
+  ./your_test_binary -oj > reports/cpputest-results.json
+- For **CTest (CMake test runner)**, run:
+  ctest --output-log reports/ctest-results.json --output-junit reports/ctest-junit.xml
+  (CTest does not produce JSON directly, but you can use the JUnit XML output)
+- For **Boost.Test**, run:
+  ./your_test_binary --report_level=detailed --log_format=JSON --log_sink=reports/boost-results.json
+"""
 
 
 class CHandler(CppHandler):

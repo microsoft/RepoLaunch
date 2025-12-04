@@ -6,7 +6,7 @@ from rich.progress import Progress
 from rich import print as rprint
 
 def main(dataset: str,
-        clear_after_push= False):
+        clear_after_push: str):
     console = Console()
     client = docker.from_env()
     
@@ -40,7 +40,7 @@ def main(dataset: str,
             except Exception as e:
                 rprint(f"[red]Error pushing {image_key}: {str(e)}[/red]")
             try:
-                if clear_after_push:
+                if int(clear_after_push):
                     client.images.remove(image_key)
                     rprint(f"[green]Successfully cleared {image_key}[/green]")
             except Exception as e:

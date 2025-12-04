@@ -1,7 +1,9 @@
 """
 Agent state management for repository setup workflow.
 """
+import json
 import operator
+import os
 import time
 import traceback
 from functools import wraps
@@ -18,7 +20,7 @@ from langchain_core.messages import (
 from langgraph.graph.message import add_messages
 from typing_extensions import Literal, Self, TypedDict
 
-from launch.runtime import SetupRuntime
+from launch.core.runtime import SetupRuntime
 from launch.utilities.timemachine import PyPiServer
 from launch.utilities.llm import LLMProvider
 
@@ -27,7 +29,7 @@ class State(TypedDict):
     exception: Exception | None
 
 
-LANGUAGE = Literal["python", "rust", "javascript", "bash"]
+LANGUAGE = Literal["python", "rust", "javascript", "bash", "java", "c", "c++", "go", "c#"]
 
 
 class AgentState(State):
@@ -51,12 +53,13 @@ class AgentState(State):
     verify_messages: List[Union[HumanMessage, AIMessage, SystemMessage]]
     setup_commands: Annotated[List[str], operator.add]
     test_commands: List[str]
+    print_commands: List[str]
     commands: Annotated[List[str], operator.add]
     repo_root: str
     repo_structure: str
     result_path: str
     date: str | None
-    docs: List[str] | None
+    docs: str | None
     base_image: str | None
     session: SetupRuntime | None
     pypiserver: PyPiServer | None
@@ -67,6 +70,13 @@ class AgentState(State):
     debug: bool
     platform: str
     image_prefix: str
+    parser: str | None
+    test_status: dict[str, str] | None
+    pertest_command: dict[str, str] | None
+    unittest_generator: str | None
+    original_parser: str | None
+    original_test_status: dict[str, str] | None
+    result: str
 
     @classmethod
     def create(
@@ -102,6 +112,15 @@ class AgentState(State):
         Returns:
             Self: Initialized AgentState instance
         """
+
+        docs = None
+        if os.path.exists(result_path):
+            with open(result_path) as f:
+                history = f.read()
+            if history.strip():
+                history = json.loads(history)
+                docs = history.get("docs", None)
+
         return cls(
             instance=instance,
             llm=llm,
@@ -113,13 +132,14 @@ class AgentState(State):
             verify_messages=[],
             setup_commands=[],
             test_commands=[],
+            print_commands=[],
             commands=[],
             repo_root=repo_root,
             repo_structure=repo_structure,
             image_prefix=image_prefix,
             result_path=result_path,
             date=date,
-            docs=None,
+            docs=docs,
             base_image=None,
             session=None,
             start_time=time.time(),
@@ -129,7 +149,14 @@ class AgentState(State):
             trials=0,
             exception=None,
             debug=debug,
-            platform=platform
+            platform=platform,
+            parser=None,
+            test_status=None,
+            pertest_command=None,
+            unittest_generator=None,
+            original_parser=None,
+            original_test_status=None,
+            result="",
         )
 
 
