@@ -11,7 +11,7 @@ dependencies = [
     "gitpython>=3.1.44",
     "langchain==0.3.26",
     "langchain-community==0.3.27",
-    "langchain-core==0.3.68",
+    "langchain-core==0.3.80",
     "langchain-openai==0.3.27",
     "langchain-anthropic",
     "langgraph==0.5.2",
