@@ -7,7 +7,7 @@ RepoLaunch addresses the bottleneck of setting up execution environments by auto
 ## Launch Environment
 Before getting started, please set your `OPENAI_API_KEY` and `TAVILY_API_KEY` environment variable. We use [tavily](https://www.tavily.com/) for LLM search engine support.
 
-We provide an example input file `test-dataset.jsonl` and a run config `test-config.json` to help you quickly go through the launch process.
+We provide an example input file `test-dataset.jsonl` and a run config `test-config.json` in `examples` folder to help you quickly go through the launch process.
 
 ```shell
 cd launch
