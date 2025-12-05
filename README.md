@@ -8,28 +8,43 @@ RepoLaunch now supports
 
 ## Launch your Repository
 
+To use RepoLaunch Agent to launch your repository, please refer to [Development.md](./docs/Development.md)
+
 RepoLaunch can:
 1) Install all dependencies and build the repository, delivered as a docker image;
 2) Organize the command to rebuild the repository inside the container after modifications;
 3) Organize command to test the repository and output testcase-status mapping, and optionally find per-testcase running command.
 
+The basic workflow of RepoLaunch agent is as follows:
 
-To use RepoLaunch Agent to launch your repository, please refer to [Development.md](./docs/Development.md)
 
+![RepoLaunch Workflow](docs/assets/1.png)
 
 ## Contributing
 
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit [Contributor License Agreements](https://cla.opensource.microsoft.com).
+### Contributing to RepoLaunch Source Codes
 
-When you submit a pull request, a CLA bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
+Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+### Use RepoLaunch for New Applications
+
+So far the major contribution of RepoLaunch is to create tasks for [SWE-bench-Live](https://github.com/microsoft/SWE-bench-Live), where the creation of SWE-tasks is based purely on scraping GitHub issues and PRs. Now SWE-bench-Live datasets have been used for benchmarking of LLMs and coding agents, and training (SFT/RL) of coding LLMs. 
+
+We encourage new research projects to design new kinds of SWE-tasks, with task creation automated by RepoLaunch.
+
+
+![RepoLaunch automated SWE dataset creation](docs/assets/2.png)
+
+## Citations
+
+```bibtex
+@article{zhang2025swebenchgoeslive,
+  title={SWE-bench Goes Live!},
+  author={Linghao Zhang and Shilin He and Chaoyun Zhang and Yu Kang and Bowen Li and Chengxing Xie and Junhao Wang and Maoquan Wang and Yufan Huang and Shengyu Fu and Elsie Nallipogu and Qingwei Lin and Yingnong Dang and Saravan Rajmohan and Dongmei Zhang},
+  journal={arXiv preprint arXiv:2505.23419},
+  year={2025}
+}
+```
 
 ## Trademarks
 
