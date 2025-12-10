@@ -10,13 +10,13 @@ import io, sys
 from rich.console import Console
 
 
-def setup_logger(instance_id: str, log_file: Path, printing: bool = True) -> logging.Logger:
+def setup_logger(instance_id: str, log_file: Path | list[Path], printing: bool = True) -> logging.Logger:
     """
     Setup logger with file and optional console output for an instance.
     
     Args:
         instance_id (str): Unique identifier for the logger instance
-        log_file (Path): Path to the log file
+        log_file (Path | list[Path]): Path(s) to the log file(s). Can be a single Path or list of Paths.
         printing (bool): Whether to enable console output with rich formatting
         
     Returns:
@@ -24,14 +24,18 @@ def setup_logger(instance_id: str, log_file: Path, printing: bool = True) -> log
     """
     logger = logging.getLogger(instance_id)
     logger.setLevel(logging.INFO)
-    log_file.parent.mkdir(parents=True, exist_ok=True)
-    # if log_file.exists():
-    #    log_file.unlink()
+    
+    # Convert single path to list for uniform handling
+    log_files = [log_file] if isinstance(log_file, Path) else log_file
+    
+    # Create file handlers for all log file paths
     formatter = logging.Formatter("%(asctime)s - %(message)s")
-    fh = logging.FileHandler(log_file, encoding="utf-8")
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
+    for lf in log_files:
+        lf.parent.mkdir(parents=True, exist_ok=True)
+        fh = logging.FileHandler(lf, encoding="utf-8")
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
     # add console handler
     # ch = logging.StreamHandler()
     # ch.setLevel(logging.INFO)

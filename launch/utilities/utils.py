@@ -104,7 +104,7 @@ def check_workspace_exists(workspace_root: Path, instance: dict) -> bool:
 
 
 def prepare_workspace(
-    workspace_root: Path, instance: dict, config: Config, log_file: str="setup.log"
+    workspace_root: Path, instance: dict, config: Config, log_file: str | list[str] = "setup.log"
 ) -> WorkSpace:
     """
     Prepare a complete workspace for processing a SWE-bench instance.
@@ -113,6 +113,7 @@ def prepare_workspace(
         workspace_root (Path): Root directory for all workspaces
         instance (dict): SWE-bench instance data
         config (Config): Configuration settings
+        log_file (str | list[str]): Log filename(s) relative to instance folder. Can be a single string or list of strings.
         
     Returns:
         WorkSpace: Fully configured workspace ready for processing
@@ -142,9 +143,19 @@ def prepare_workspace(
     repo_root = prepare_repo(instance, instance_folder / "repo")
     if not repo_structure:
         repo_structure = view_repo_structure(repo_root)
-    log_file = instance_folder / log_file
+    
+    # Convert log_file to list of Paths
+    log_files = [log_file] if isinstance(log_file, str) else log_file
+    log_paths = []
+    for lf in log_files:
+        # If path starts with organize_logs/, make it relative to workspace_root instead of instance_folder
+        if lf.startswith("organize_logs/"):
+            log_paths.append(workspace_root / lf)
+        else:
+            log_paths.append(instance_folder / lf)
+    
     logger = setup_logger(
-        instance["instance_id"], log_file, printing=config.print_to_console
+        instance["instance_id"], log_paths, printing=config.print_to_console
     )
     
     language = instance.get("language", "python").lower()

@@ -40,7 +40,8 @@ def main(
         swe_instance = {
             **instance,
             "setup_cmds": result.get("setup_commands", []),
-            "test_cmds": result["test_commands"],
+            "test_cmds": result.get("test_commands", []),
+            "print_cmds": result.get("print_commands", []),
             "log_parser": result.get("log_parser", "pytest"),
             "docker_image": result.get("docker_image", f"karinali20011210/migbench:{instance["instance_id"]}_{platform}"),
         }

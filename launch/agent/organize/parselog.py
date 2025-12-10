@@ -13,16 +13,17 @@ from launch.agent.prompt import ReAct_prompt
 from launch.agent.state import AgentState, auto_catch
 from launch.scripts.parser import run_parser
 
-system_msg: str = """You are a developer specializing in test output parsing. Your task is to analyze test output and generate a robust log parser.
+system_msg: str = """You are a developer specializing in test output analysis and parsing. Your task is to examine the test output, evaluate the current parser, and generate an improved, fully robust parser.
 
 You have access to:
-- Test output log from the previous stage: {test_output}
-- Draft parser script from previous stage: {current_parser}
-- Test status results from draft parser: {current_results}
+- **Raw test output** from the previous stage: {test_output}
+- **Draft parser script** from the previous stage: {current_parser}
+- **Draft parser results**: {current_results}
 
-## Your Goals:
+Your goal is to write a parser that it correctly extracts *every* test case and its status.
 
-1. **Analyze Draft Parser Performance**: Evaluate how well the draft parser extracts test case statuses from the test output
+## Your Tasks:
+1. **Analyze Draft Parser**: Evaluate how well the draft parser extracts test case statuses from the test output
 2. **Identify Improvement Opportunities**: Look for:
    - Missed test cases that should have been parsed
    - Incorrectly parsed test cases
@@ -33,21 +34,31 @@ You have access to:
    - Handles edge cases better
    - Robust to output format variations
    - Extracts granular test case information
+   - Make it as simple as possible while being effective
 
-## Framework Detection Guidelines:
+# REQUIRED PARSER OUTPUT
+Your final parser MUST return **only** a dictionary in this exact form:
+{{"test_case_name": "pass", "another_test": "fail", "third_test": "skip"}}
+The test statuses can only be in {{"pass", "fail", "skip"}}. Any kinds of fail of error should be taken as 'fail'.
 
-Based on the test commands and output patterns, identify the testing framework, for example:
-- **pytest**: Look for `PASSED`, `FAILED`, `SKIPPED`, `ERROR` with `::` test paths
-- **unittest**: Look for `OK`, `FAIL`, `ERROR` with dotted test names
-- **jest**: Look for `✓`, `✕`, `○` symbols or `PASS`/`FAIL` status
-- **maven/surefire**: Look for `Tests run:`, `Failures:`, `Errors:` summaries
-- **gradle**: Look for `BUILD SUCCESSFUL`/`BUILD FAILED` and test class reports
-- **cargo**: Look for `test result:` summaries and individual `test ... ok/FAILED`
-- **go test**: Look for `PASS`/`FAIL` with package names and test functions
-- **googletest**: Look for `[  OK  ]`, `[ FAIL ]` with test suite names
-- **custom frameworks**: Analyze unique patterns in the output
+## Hints for testcase extraction
+Refer to the patterns below to identify test cases and their statuses.
+XML (Maven, Gradle, JUnit, TestNG):
+- Look for `<testsuite>` and `<testcase>` elements.
+- Status rules: `<failure>` → fail, `<error>` → fail, `<skipped>` → skip, otherwise pass.
+pytest:
+- Lines like: `file.py::test_name PASSED/FAILED/SKIPPED/ERROR`.
+unittest:
+- Patterns such as: `TestClass.test_method ... ok/FAIL/ERROR`.
+Jest:
+- Symbols: `✓` pass, `✕` fail, `○` skip  
+- Or keywords: `PASS` / `FAIL`.
+Go test:
+- Lines like: `--- PASS: TestName`, `--- FAIL: TestName`, `--- SKIP: TestName`.
+Other frameworks:
+- Look for consistent use of `PASS`, `FAIL`, or `SKIP` near test case names.
 
-You need to finish this analysis and improvement in {steps} steps.
+You need to finish this in {steps} steps.
 """
 
 
@@ -316,4 +327,5 @@ Parser executed successfully. Please analyze the results and submit if satisfied
         "analysis_result": analysis_result,
         "improved_test_status": final_test_status,
         "success": bool(answer and improved_parser),
+        "test_output": test_output,
     }

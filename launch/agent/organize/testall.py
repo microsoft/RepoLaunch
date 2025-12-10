@@ -25,90 +25,92 @@ Your task is to organize the MINIMAL test commands to run ALL test cases and wri
 - Re-build commands (already executed): {setup_cmd}
 - You only need to output test commands now
 
-## THREE STEPS TO COMPLETE
+## THREE STEPS YOU MUST COMPLETE
 
-### STEP 1: Find Minimal Test Command & Save Output to File
-Find a test command that prints out all test cases. **IMPORTANT: Whenever possible, try to output in structured format (JSON, XML, or other machine-readable format).**
+## STEP 1 — Run All Tests & Save Output
 
-**Preferred: Use structured output (JSON/XML/etc) if framework supports it:**
-- Submit a test command that saves results in JSON or XML format to a file
-- Structured formats make parsing much easier and more reliable
-**Fallback: If NO structured format is available, use verbose text output:**
-- Submit a test command that captures all test output to a file with verbose logging
+Find the **minimal test command** that runs *ALL* test cases and outputs the status (pass/fail/skip) of **every individual test case**.
 
-**Requirements for Step 1:**
-- The command must run ALL test cases (not a subset)
-- Output must expose EVERY test case with its status (pass/fail/skip)
-- Output must be saved to a file (use `> file.txt` or `| tee file.txt`)
-- **Strongly prefer structured formats (JSON/XML) over raw logs for easier and more reliable parsing**
+### Use this decision logic:
 
+### Prefer Structured Output (JSON/XML)
+Many frameworks automatically generate structured result files:
+
+| Framework | Structured Output Location |
+|----------|-----------------------------|
+| Maven | `target/surefire-reports/*.xml` |
+| Gradle | `build/test-results/test/*.xml` |
+| Jest | use `--json --outputFile=...` |
+| Vitest | use `--reporter=json` |
+| Pytest (plugin) | `--json-report --json-report-file=...` |
+
+If structured output is available:
+- **Run the test command normally**
+- Do **not** redirect stdout
+- The structured reports will be auto-generated on disk
+
+### Fallback: No Structured Output Available
+If the framework does **not** generate machine-readable test results:
+- Run tests in verbose mode
+- Redirect **all** output to a file
+- Example:
+  ```bash
+  go test ./... -v 2>&1 | tee test-output.log
+
+### Requirements for Step 1:
+- Must run **ALL** test cases
+- Must expose every test case's status (pass/fail/skip)
+- Prefer structured output; otherwise, capture verbose logs
+- Save output or ensure structured files exist
+
+### Language-specific Hints
 {test_cmd_hints}
 
-### STEP 2: Print Out All Logs from the File
-After Step 1 completes, submit a command to print out all the logs/results from the file.
-- Example: `cat jest-results.json`
-- Example: `cat test-output.log`
-- Example: `cat report.json`
+### SUBMISSION 1: Test command (STEP 1)
+<submit>YOUR_TEST_COMMAND_HERE</submit>
 
-This step extracts the content from the file saved in Step 1.
+## STEP 2: Print Test Results
+After running tests, print the actual result file(s).
 
-### STEP 3: Write Python Parser
-Write a python script to extract each test case and its result (pass/fail/skip) from the logs. 
+If structured report files exist, print those files:
+- Maven:
+    cat target/surefire-reports/*.xml
+- Gradle:
+    cat build/test-results/test/*.xml
+- Jest:
+    cat jest-results.json
+
+If no structured output exists, print the redirected log file:
+    cat test-output.log
+
+### SUBMISSION 2 - Print command (STEP 2)
+<submit>COMMAND_TO_PRINT_THE_OUTPUT_FILE</submit>
+
+## STEP 3: Write Python Parser
+Write a python script to extract each test case and its result (pass/fail/skip) from the output. 
 Make sure it actually run the parser to validate.
 
 The parser function should:
-- Take the log output as input
-- Parse JSON/XML if available, otherwise parse text logs with regex
+- **For structured formats (JSON/XML):** Use json.loads() or xml.etree.ElementTree to parse
+- **For text logs:** Use regex to extract test names and statuses
 - Extract test case names and their status (pass/fail/skip)
-- Return a dictionary mapping test names to status strings
+- Return a dictionary mapping test names to status strings: {{"test_case_name": "pass" | "fail" | "skip"}}
+- No extra information or explanation should be included in the returned dictionary
+
+### SUBMISSION 3 - Validate parser (STEP 3)
+The parser will be auto-stored when you execute it.
+<python>
+# your parser function here
+</python>
 
 ## Important Notes
-- Step 1: Run tests and save to file (do NOT print to console in this step)
-- Step 2: Print the file contents (this is what parser will receive)
-- Step 3: Parse the output to extract test -> status mapping
-- If test framework groups results by suite, extract per-test status where possible
-- Suppress unnecessary console noise (spinners, warnings) when saving to file in Step 1
+- Always choose structured report files when available.
+- Fall back to verbose text logs only when necessary.
+- The test command must run all test cases.
+- The print command must print actual test results, not generic logs.
+- The parser must reliably extract per testcase status.
 
-## Your Three Goals
-1. Submit test command that saves output to a file (Step 1)
-2. Submit command to print the file contents (Step 2)
-3. Write python script to extract test_name to status mapping from the output (Step 3)
-
-## Output Format for Submission
-Submit: THREE submissions required to complete:
-
-    SUBMISSION 1 - Test command (STEP 1): Run tests and save output to file
-    <submit>COMMAND_TO_RUN_TESTS_AND_SAVE_OUTPUT</submit>
-    Examples:
-        <submit>npm run test:unit -- --json --outputFile=jest-results.json</submit>
-        <submit>pytest tests/ --json-report --json-report-file=report.json</submit>
-        <submit>./mvnw test -B -Dsurefire.printSummary=false 2>&1 | tee test-output.log</submit>
-        <submit>go test ./... -v 2>&1 | tee test-output.log</submit>
-    
-    SUBMISSION 2 - Print command (STEP 2): Print the file contents
-    <submit>COMMAND_TO_PRINT_THE_OUTPUT_FILE</submit>
-    Examples:
-        <submit>cat jest-results.json</submit>
-        <submit>cat report.json</submit>
-        <submit>cat test-output.log</submit>
-        <submit>cat flink-core/target/surefire-reports/*.txt</submit>
-    
-    SUBMISSION 3 - Validate parser (STEP 3): Write and execute the parser
-    Write and execute a Python parser to extract test cases and their status from the output.
-    The parser will be automatically validated when you execute it.
-    <python>def parser(log: str) -> dict[str, str]:
-    # Extract test cases and their status from the printed output
-    import re
-    results = {{}}
-    for line in log.splitlines():
-        m = re.search(r'(\S+)\s+(PASSED|FAILED|SKIPPED)', line)
-        if m:
-            test, status = m.groups()
-            results[test] = 'pass' if 'PASSED' in status else 'fail' if 'FAILED' in status else 'skip'
-    return results</python>
-    
-    When parser is executed and validated successfully, you should invoke submit action and the process finishes.
-
+**Note**: Only one command should be submitted per submission. Submit only after you finish all three steps. No resubmission of previous steps is allowed.
 You need to finish in {steps} steps.
 """
 
@@ -293,7 +295,7 @@ def organize_test_cmd(state: AgentState, max_steps: int, timeout: int = 30) -> d
         if action.action == "command":
             session = state["session"]
             result = session.send_command(action.args)
-            test_output += result.output # This is full (unstripped) command output
+            test_output = result.output # This is full (unstripped) command output
             return SetupObservation(content=result.to_observation(), is_stop=False) # content is trucated history
         if action.action == "python":
             if print_command != "":

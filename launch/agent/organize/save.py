@@ -62,7 +62,13 @@ def save_organize_result(state: AgentState) -> dict:
             logger.info(f"Image {key}:{tag} committed successfully.")
             state["docker_image"] = f"{key}:{tag}"
         except Exception as e:
-            raise Exception(f"Failed to commit image: {e}. If timeout please commit and clean the container manually.")
+            # raise Exception(f"Failed to commit image: {e}. If timeout please commit and clean the container manually.")
+            commit_error = f"Failed to commit image: {e}. If timeout please commit and clean the container manually."
+            logger.error(commit_error)
+            if not exception:
+                exception = commit_error
+            else:
+                exception = f"{exception}\n{commit_error}"
 
     # in case unexpected error escapes previous clean-up
     if os.path.exists(state["repo_root"]):
@@ -101,6 +107,20 @@ def save_organize_result(state: AgentState) -> dict:
             },
             indent=2,
         )
+
+    # Save test_output to a separate log file
+    test_output = state.get("test_output", "")
+    if test_output:
+        test_status_log_path = os.path.join(os.path.dirname(path), "test_status.log")
+        try:
+            with open(test_status_log_path, "w", encoding="utf-8") as f:
+                f.write(test_output)
+            logger.info(f"Test output saved to: {test_status_log_path}")
+        except Exception as e:
+            logger.warning(f"Failed to save test output to log file: {e}")
+    else:
+        logger.info("No test output to save.")
+    
     with open(path, "w") as f:
         f.write(result)
     time.sleep(10)

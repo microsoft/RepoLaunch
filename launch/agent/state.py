@@ -71,6 +71,7 @@ class AgentState(State):
     platform: str
     image_prefix: str
     parser: str | None
+    test_output: str | None
     test_status: dict[str, str] | None
     pertest_command: dict[str, str] | None
     unittest_generator: str | None
@@ -151,6 +152,7 @@ class AgentState(State):
             debug=debug,
             platform=platform,
             parser=None,
+            test_output=None,
             test_status=None,
             pertest_command=None,
             unittest_generator=None,
