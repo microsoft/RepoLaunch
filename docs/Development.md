@@ -123,7 +123,8 @@ from launch.scripts.parser import run_parser
 # load an instance from organize.jsonl
 
 container = SetupRuntime.from_launch_image(instance["docker_image"], instance["instance_id"])
-testlog = container.send_command(";".join(instance["test_commands"])).output
+container.send_command(";".join(instance["test_cmds"]))
+testlog = container.send_command(";".join(instance["print_cmds"])).output
 status = run_parser(instance["parser"], testlog)
 
 print(status)
@@ -145,8 +146,9 @@ container = SetupRuntime.from_launch_image(instance["docker_image"], instance["i
 container.send_command(f"""git apply - <<'NEW_PATCH'\n{diff_patch}\nNEW_PATCH""")
 # for windows powershell: container.send_command(f"""git apply - <<@"{diff_patch}"@""")
 container.send_command(";".join(instance["rebuild_cmd"]))
-after_patch_testlog = container.send_command(";".join(instance["test_commands"])).output
-after_patch_status = run_parser(instance["log_parser"], testlog)
+container.send_command(";".join(instance["test_cmds"]))
+after_patch_testlog = container.send_command(";".join(instance["print_cmds"])).output
+after_patch_status = run_parser(instance["log_parser"], after_patch_testlog)
 
 # if you need to save the changes
 # container.send_command("git commit -m 'apply new patch'")
