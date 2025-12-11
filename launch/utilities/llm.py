@@ -3,7 +3,7 @@ LLM provider abstraction for various language model services.
 """
 import os
 from functools import wraps
-from typing import List
+from typing import List, Optional
 from langchain_core.messages import BaseMessage, HumanMessage
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
@@ -96,7 +96,7 @@ class LLMProvider:
 
 class OpenAIModel:
     """OpenAI model implementation with API key authentication."""
-    def __init__(self, model_name: str, temperature: float = 0.0):
+    def __init__(self, model_name: str, temperature: Optional[float] = None):
         """
         Initialize OpenAI model.
         
@@ -131,7 +131,7 @@ class OpenAIModel:
 
 class AnthropicModel:   
     """Anthropic model implementation with API key authentication."""
-    def __init__(self, model_name: str, temperature: float = 0.0):
+    def __init__(self, model_name: str, temperature: Optional[float] = None):
         """
         Initialize Anthropic model.
         
@@ -165,7 +165,7 @@ class AnthropicModel:
 
 class AzureOpenAIModel:
     """Azure OpenAI model implementation with token-based authentication."""
-    def __init__(self, model_name: str, temperature: float = 0.0):
+    def __init__(self, model_name: str, temperature: Optional[float] = None):
         """
         Initialize Azure OpenAI model.
         
@@ -178,18 +178,9 @@ class AzureOpenAIModel:
 
         from langchain_openai import AzureChatOpenAI
 
-        import sys
-        sys.path.append("../../")
-        
-        from cloudgpt_aoai import get_openai_token_provider
-
-        token_provider = get_openai_token_provider()
-
         self.llm = AzureChatOpenAI(  # Directly initialize the instance
             model=model_name,
-            azure_ad_token_provider=token_provider,
-            api_version="2025-03-01-preview",
-            azure_endpoint="https://cloudgpt-openai.azure-api.net/",
+            temperature=temperature,
         )
     
     def invoke(self, messages: List[BaseMessage]) -> BaseMessage:
