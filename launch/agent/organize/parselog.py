@@ -322,10 +322,10 @@ Parser executed successfully. Please analyze the results and submit if satisfied
     
     return {
         "messages": messages,
-        "improved_parser": improved_parser,
+        "parser": improved_parser,
         "framework_detected": framework_detected,
         "analysis_result": analysis_result,
-        "improved_test_status": final_test_status,
+        "test_status": final_test_status,
         "success": bool(answer and improved_parser),
         "test_output": test_output,
     }

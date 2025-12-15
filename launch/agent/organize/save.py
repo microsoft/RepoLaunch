@@ -96,6 +96,7 @@ def save_organize_result(state: AgentState) -> dict:
                 "rebuild_commands": state.get("setup_commands", []),
                 "test_commands": state.get("test_commands", []),
                 "test_status": state.get("test_status", {}),
+                "print_commands": state.get("print_commands", []),
                 "pertest_command": state.get("pertest_command", {}),
                 "log_parser": state.get("parser", ""),
                 "unittest_generator": state.get("unittest_generator", ""),

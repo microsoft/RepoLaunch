@@ -420,26 +420,27 @@ function prompt {
             self.send_command(f'chown -R root:root "{dest}"')
 
     def apply_patch(self, patch: str, verbose = False) -> bool:
+        output_temp = "\n\n<<<<<<PATCH FAILED TO APPLY CLEANLY\n{out}\n>>>>>>\n\n"
         if self.platform == "linux":
-            res = self.send_command(f"""git apply - <<'NEW_PATCH_HAHA'\n{patch}\nNEW_PATCH_HAHA""")
+            res = self.send_command(f"""git apply --3way  --whitespace=nowarn -  <<'NEW_PATCH_HAHA'\n{patch}\nNEW_PATCH_HAHA""")
             if int(res.metadata.exit_code) == 0:
                 return True
             else:
                 if verbose:
-                    print(res.output)
+                    print(output_temp.format(out=res.output))
                 return False
         if self.platform == "windows":
             res = self.send_command(f"""$patch = @'\n{patch}\n'@\n""")
             if int(res.metadata.exit_code) != 0:
                 if verbose:
-                    print(res.output)
+                    print(output_temp.format(out=res.output))
                 return False
-            res = self.send_command(f"""$patch | git apply -""")
+            res = self.send_command(f"""$patch | git apply --3way  --whitespace=nowarn - """)
             if int(res.metadata.exit_code) == 0:
                 return True
             else:
                 if verbose:
-                    print(res.output)
+                    print(output_temp.format(out=res.output))
                 return False
     
     def cleanup(self, prune_dangling = True) -> None:
