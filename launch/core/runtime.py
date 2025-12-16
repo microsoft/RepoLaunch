@@ -18,6 +18,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Optional
+import uuid
 
 import docker
 from docker.models.containers import Container
@@ -201,6 +202,9 @@ class SetupRuntime:
         """
         self.container = container
         self.platform = container_platform
+        self.mnt_host = os.path.join(os.getcwd(), "tmp")
+        self.working_dir = r"C:\testbed" if self.platform == "windows" else r"/testbed"
+        self.mnt_container = os.path.join(self.working_dir, "tmp")
         self.sock = self.container.attach_socket(
             params={"stdin": 1, "stdout": 1, "stderr": 1, "stream": 1}
         )
@@ -421,27 +425,26 @@ function prompt {
 
     def apply_patch(self, patch: str, verbose = False) -> bool:
         output_temp = "\n\n<<<<<<PATCH FAILED TO APPLY CLEANLY\n{out}\n>>>>>>\n\n"
-        if self.platform == "linux":
-            res = self.send_command(f"""git apply --3way  --whitespace=nowarn -  <<'NEW_PATCH_HAHA'\n{patch}\nNEW_PATCH_HAHA""")
-            if int(res.metadata.exit_code) == 0:
-                return True
-            else:
-                if verbose:
-                    print(output_temp.format(out=res.output))
-                return False
-        if self.platform == "windows":
-            res = self.send_command(f"""$patch = @'\n{patch}\n'@\n""")
-            if int(res.metadata.exit_code) != 0:
-                if verbose:
-                    print(output_temp.format(out=res.output))
-                return False
-            res = self.send_command(f"""$patch | git apply --3way  --whitespace=nowarn - """)
-            if int(res.metadata.exit_code) == 0:
-                return True
-            else:
-                if verbose:
-                    print(output_temp.format(out=res.output))
-                return False
+
+        filename = f"{uuid.uuid4()}.diff"
+        hostpath = os.path.join(self.mnt_host, filename)
+        with open(hostpath, "w") as f:
+            f.write(patch)
+        containerpath =  os.path.join(self.mnt_container, filename)
+        
+        cmd = f"""git apply --reject  --whitespace=nowarn  {containerpath} """
+        res = self.send_command(cmd)
+        try:
+            os.remove(hostpath)
+        except:
+            pass
+        if int(res.metadata.exit_code) == 0:
+            print(f"{cmd} ---- Patch applied Successfully!", flush=True)
+            return True
+        else:
+            if verbose:
+                print(output_temp.format(out=res.output), flush=True)
+            return False
     
     def cleanup(self, prune_dangling = True) -> None:
         if self.stopped:
@@ -538,6 +541,7 @@ function prompt {
         # which operating system this code is running on, note windows can run linux containers, so engine_os != (container) platform
         extra_hosts = {"host.docker.internal": "host-gateway"} if "linux" in engine_os else None
         
+        os.makedirs(os.path.join(os.getcwd(), "tmp"), exist_ok=True)
         if platform == "windows":
             shell_command = r"powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -NoExit"
             working_dir = r"C:\testbed"
@@ -565,6 +569,12 @@ function prompt {
             },
             working_dir=working_dir,
             extra_hosts=extra_hosts,
+            volumes={
+                os.path.join(os.getcwd(), "tmp"): {
+                    "bind": os.path.join(working_dir, "tmp"),
+                    "mode": "rw",
+                }
+            },
             **run_kwargs,
         )
 
@@ -609,6 +619,7 @@ function prompt {
         # which operating system this code is running on, note windows can run linux containers, so engine_os != (container) platform
         extra_hosts = {"host.docker.internal": "host-gateway"} if "linux" in engine_os else None
         
+        os.makedirs(os.path.join(os.getcwd(), "tmp"), exist_ok=True)
         if platform == "windows":
             shell_command = r"powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -NoExit"
             working_dir = r"C:\testbed"
@@ -636,6 +647,12 @@ function prompt {
             },
             working_dir=working_dir,
             extra_hosts=extra_hosts,
+            volumes={
+                os.path.join(os.getcwd(), "tmp"): {
+                    "bind": os.path.join(working_dir, "tmp"),
+                    "mode": "rw",
+                }
+            },
             **run_kwargs,
         )
 
