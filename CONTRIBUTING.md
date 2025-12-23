@@ -19,7 +19,7 @@ or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any addi
 
 1. Welcome issues and PRs related to the bugs and inefficiencies of out agent.
 
-2. We found that many threads created from launch/run.py would have "Result Empty Error", which means the last agent state is not saved to disk and not passed back to the main function in launch/run.py. But we failed to find any problems in our code. Maybe it is the problem of concurrency, the problem of old Langchain agent apis... Please help us find that problem and fix it!
+2. We found that many threads created from launch/run.py would have "Result Empty Error", which means the last agent state is not saved to disk and not passed back to the main function in launch/run.py. We think it's mostly because docker commit in save.py takes too long time (usually 10min - 120 min) -- it will return read timeout and so often make the thread DEAD... Future works would make docker commit detached in a separate thread/process to solve the problem. Maybe there's also problem in docker concurrency and old Langchain agent apis... Please help us find that problem and fix it!
 
 3. In [launch/utilities/language_handlers.py](launch/utilities/language_handlers.py), you can see language-specific and operating-system-specific prompts and base images. 
 Please help us improve these prompts and add new base images. 
