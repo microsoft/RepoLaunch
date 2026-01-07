@@ -491,7 +491,7 @@ function prompt {
         Returns:
             bool: True if successful, False if image not found
         """
-        client = docker.from_env()
+        client = docker.from_env(timeout=3600) # pull should finish in 1 hour
         try:
             # Check if image exists locally
             client.images.get(image_name)
@@ -531,7 +531,7 @@ function prompt {
             raise RuntimeError("Docker is not installed or not running.")
 
         _ = cls.pull_image(image_name)
-        client = docker.from_env(timeout=600)
+        client = docker.from_env(timeout=7200) # commit added layers should finish in 2 hours
         container_name = f"git-launch-{instance_id}-{str(uuid.uuid4())[:4]}"
         info = client.version()
         engine_os = (info.get("Os") or info.get("OSType") or "").lower() 
@@ -608,7 +608,9 @@ function prompt {
             raise RuntimeError("Docker is not installed or not running.")
 
         _ = cls.pull_image(image_name)
-        client = docker.from_env(timeout=600)
+        client = docker.from_env(timeout=18000) 
+        # commit a new image built from scratch should require many many hours
+        # todo: make docker commit a separate thread / process, make it async to accelerate
         container_id = instance["instance_id"]
         container_name = f"git-launch-{container_id}-{str(uuid.uuid4())[:4]}"
         info = client.version()
