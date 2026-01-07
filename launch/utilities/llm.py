@@ -78,8 +78,8 @@ class LLMProvider:
 
     @logged_invoke
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential_jitter(initial=5, max=10, jitter=3)
+        stop=stop_after_attempt(8),
+        wait=wait_exponential_jitter(initial=20, max=120, jitter=3)
     )
     def invoke(self, messages: List[BaseMessage]) -> BaseMessage:
         """
