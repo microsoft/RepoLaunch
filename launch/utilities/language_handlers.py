@@ -48,7 +48,7 @@ class PythonHandler(LanguageHandler):
     
     def base_images(self, platform = "linux") -> List[str]:
         if platform == "linux":
-          return [f"python:3.{v}" for v in range(6, 12)]
+          return [f"python:3.{v}" for v in range(6, 15)]
         else:
           return [f"python:3.{v}" for v in [
               "14-windowsservercore-ltsc2025",
@@ -116,7 +116,7 @@ class JavaScriptHandler(LanguageHandler):
     
     def base_images(self, platform = "linux") -> List[str]:
         if platform == "linux":
-            return [f"node:{v}" for v in ["18", "20", "22"]]
+            return [f"node:{v}" for v in ["18", "20", "22", "24", "25"]]
         else:
             return ["karinali20011210/windows_server:ltsc2025_nvm",]
     
@@ -352,9 +352,10 @@ class CSharpHandler(LanguageHandler):
     
     def base_images(self, platform = "linux") -> List[str]:
         if platform == "linux":
-            return [f"mcr.microsoft.com/dotnet/sdk:{v}" for v in ["6.0", "7.0", "8.0", "9.0"]]
+            return [f"mcr.microsoft.com/dotnet/sdk:{v}" for v in ["6.0", "7.0", "8.0", "9.0", "10.0"]]
         elif platform == "windows":
             return [f"mcr.microsoft.com/dotnet/sdk:{v}" for v in [
+                "10.0-windowsservercore-ltsc2022",
                 "9.0-windowsservercore-ltsc2022",
                 "8.0-windowsservercore-ltsc2022",
                 "9.0-windowsservercore-ltsc2019",
