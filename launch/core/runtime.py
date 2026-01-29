@@ -193,7 +193,12 @@ class SetupRuntime:
     Manages a Docker container with persistent bash session, command execution,
     file operations, and container lifecycle management.
     """
-    def __init__(self, container: Container, container_platform: str = "linux"):
+    def __init__(
+                    self, 
+                    container: Container, 
+                    container_platform: str = "linux",
+                    command_timeout: int = 30
+                ):
         """
         Initialize runtime with an existing Docker container.
         
@@ -202,6 +207,7 @@ class SetupRuntime:
         """
         self.container = container
         self.platform = container_platform
+        self.command_timeout=command_timeout
         self.mnt_host = os.path.join(os.getcwd(), "tmp")
         self.working_dir = r"C:\testbed" if self.platform == "windows" else r"/testbed"
         self.mnt_container = self.working_dir + r"\mnt_tmp" if self.platform == "windows" else r"/testbed/mnt_tmp"
@@ -346,7 +352,9 @@ function prompt {
 
         raise TypeError(f"Don't know how to write to {type(self.sock).__name__}")
 
-    def send_command(self, command: str, timeout: float = 20 * 60) -> CommandResult:
+    def send_command(self, command: str) -> CommandResult:
+        timeout = self.command_timeout * 60 # in seconds
+
         # Normalize newline semantics for interactive shells
         if self.platform == "windows":
             # For PowerShell, ensure CRLF line endings
@@ -510,6 +518,7 @@ function prompt {
         image_name: str,
         instance_id: str,
         platform: Literal["linux", "windows"] = "linux",
+        command_timeout: int = 30,
     ) -> SetupRuntime:
         """
         Start a Docker container session for repository testing.
@@ -575,7 +584,11 @@ function prompt {
             **run_kwargs,
         )
 
-        session = cls(container, container_platform=platform)
+        session = cls(
+                    container, 
+                    container_platform=platform,
+                    command_timeout=command_timeout,
+                )
 
         return session
 
@@ -587,6 +600,7 @@ function prompt {
         image_name: str,
         instance: dict,
         platform: Literal["linux", "windows"] = "linux",
+        command_timeout: int = 30,
     ) -> SetupRuntime:
         """
         Start a Docker container session for repository testing.
@@ -649,7 +663,11 @@ function prompt {
             **run_kwargs,
         )
 
-        session = cls(container, container_platform=platform)
+        session = cls(
+                    container, 
+                    container_platform=platform,
+                    command_timeout=command_timeout,
+                )
 
         # We avoid copying due to performance issues
         # session.copy_dir_to_container(str(workspace), "/workspace")

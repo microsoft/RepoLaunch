@@ -122,7 +122,7 @@ def organize_instance(instance, config, workspace_root):
                 return "fail", instance["instance_id"], "Organize failed"
 
     try:
-        workspace = prepare_workspace(workspace_root, instance, config)
+        workspace = prepare_workspace(workspace_root, instance, config, log_file="organize.log")
         result = safe_read_result(organize(instance, workspace), result_path, lock)
         if result["organize_completed"]:
             return "success", instance["instance_id"], None

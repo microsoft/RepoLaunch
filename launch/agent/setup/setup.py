@@ -158,7 +158,10 @@ def start_bash_session(state: AgentState) -> dict:
     for attempt in range(max_docker_retries):
         try:
             logger.info(f"Docker attempt {attempt + 1}/{max_docker_retries}")
-            session = SetupRuntime.from_base_image(base_image, state["instance"], platform = state["platform"])
+            session = SetupRuntime.from_base_image(base_image, 
+                                                    state["instance"], 
+                                                    platform = state["platform"],
+                                                    command_timeout = state["command_timeout"])
             logger.info(f"Session started successfully: {session}")
             break
         except Exception as e:
@@ -199,7 +202,7 @@ SETUP_CONVERSATION_WINDOW = 40
 
 
 @auto_catch
-def setup(state: AgentState, max_steps: int, timeout: int = 30) -> dict:
+def setup(state: AgentState, max_steps: int) -> dict:
     """
     ReAct agent for environment setup through conversational command execution.
     
@@ -260,11 +263,7 @@ def setup(state: AgentState, max_steps: int, timeout: int = 30) -> dict:
     prefix_messages = len(messages)
     commands = state.get("setup_commands", [])
     step = 0
-    start_time = time.time()
     while step < max_steps:
-        if time.time() - start_time > timeout * 60:
-            logger.info(f"Reached global timeout of {timeout} minutes")
-            break
         step += 1
         # uses a window to avoid exceed context
         commands_history = HumanMessage(

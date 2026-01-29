@@ -169,7 +169,8 @@ def reload_container(state: AgentState) -> dict:
     session = SetupRuntime.from_launch_image(
         image_name = image_name,
         instance_id = state["instance"]["instance_id"], 
-        platform = state["platform"]
+        platform = state["platform"],
+        command_timeout = state["command_timeout"],
     )
 
     # clean up repository in the host
@@ -245,7 +246,7 @@ Your response:"""
         return analysis == "FAILURE"
 
 @auto_catch
-def organize_setup(state: AgentState, max_steps: int, timeout: int = 30) -> dict:
+def organize_setup(state: AgentState, max_steps: int) -> dict:
     """
     ReAct agent for environment setup through conversational command execution.
     
@@ -287,11 +288,7 @@ def organize_setup(state: AgentState, max_steps: int, timeout: int = 30) -> dict
     step = 0
     commands = []
     answer = None
-    start_time = time.time()
     while step < max_steps:
-        if time.time() - start_time > timeout * 60:
-            logger.info(f"Reached global timeout of {timeout} minutes")
-            break
         step += 1
         # uses a window to avoid exceed context
         commands_history = HumanMessage(
