@@ -275,15 +275,11 @@ Parser executed successfully. Please analyze the results and submit if satisfied
     prefix_messages = len(messages)
     step = 0
     answer = None
-    start_time = time.time()
     
     # Store test_output in state for testing
     state["test_output"] = test_output
     
     while step < max_steps:
-        if time.time() - start_time > timeout * 60:
-            logger.info(f"Reached global timeout of {timeout} minutes")
-            break
             
         step += 1
         

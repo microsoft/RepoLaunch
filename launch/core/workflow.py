@@ -13,7 +13,7 @@ from launch.agent.setup.verify import verify
 from launch.agent.setup.save import save_setup_result
 
 
-def define_setup_workflow(max_trials: int = 3, max_steps_setup: int = 20, max_steps_verify: int = 20, timeout: int = 30):
+def define_setup_workflow(max_trials: int = 3, max_steps_setup: int = 20, max_steps_verify: int = 20):
     """
     Define the workflow graph for repository environment setup.
     
@@ -21,7 +21,6 @@ def define_setup_workflow(max_trials: int = 3, max_steps_setup: int = 20, max_st
         max_trials (int): Maximum number of setup/verify retry attempts
         max_steps_setup (int): Maximum steps allowed for setup 
         max_steps_verify (int): Maximum steps allowed for verify 
-        timeout (int): timeout after ? minutes only for setup step
         
     Returns:
         Compiled workflow graph ready for execution
@@ -33,8 +32,7 @@ def define_setup_workflow(max_trials: int = 3, max_steps_setup: int = 20, max_st
     graph.add_node("select_base_image", select_base_image)
     graph.add_node("start_bash_session", start_bash_session)
     setup_agent = partial(setup, 
-                          max_steps = max_steps_setup,
-                          timeout = timeout)
+                          max_steps = max_steps_setup)
     graph.add_node("setup", setup_agent)
     verify_agent = partial(verify, 
                            max_steps = max_steps_verify)
@@ -64,7 +62,7 @@ from launch.agent.organize.parselog import generate_log_parser
 from launch.agent.organize.testone import organize_unit_test
 from launch.agent.organize.save import save_organize_result
 
-def define_organize_workflow(max_steps: int = 20, timeout: int = 30):
+def define_organize_workflow(max_steps: int = 20):
     """
     Define the workflow graph for repository environment setup.
     
@@ -72,7 +70,6 @@ def define_organize_workflow(max_steps: int = 20, timeout: int = 30):
         max_trials (int): Maximum number of setup/verify retry attempts
         max_steps_setup (int): Maximum steps allowed for setup 
         max_steps_verify (int): Maximum steps allowed for verify 
-        timeout (int): timeout after ? minutes only for setup step
         
     Returns:
         Compiled workflow graph ready for execution
@@ -82,17 +79,13 @@ def define_organize_workflow(max_steps: int = 20, timeout: int = 30):
     # Add nodes
     graph.add_node("locate_related_file", locate_related_file)
     rebuild_agent = partial(organize_setup, 
-                          max_steps = max_steps,
-                          timeout = timeout)
+                          max_steps = max_steps)
     testall_agent = partial(organize_test_cmd, 
-                           max_steps = max_steps,
-                           timeout = timeout)
+                           max_steps = max_steps)
     parselog_agent = partial(generate_log_parser,
-                            max_steps = max_steps,
-                            timeout = timeout)
+                            max_steps = max_steps)
     testone_agent = partial(organize_unit_test, 
-                           max_steps = max_steps,
-                           timeout = timeout)
+                           max_steps = max_steps)
     graph.add_node("container", reload_container)
     graph.add_node("rebuild", rebuild_agent)
     graph.add_node("testall", testall_agent)

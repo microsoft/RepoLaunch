@@ -22,8 +22,7 @@ def setup(instance: dict, workspace: WorkSpace):
     workflow = define_setup_workflow(
         max_trials = workspace.max_trials, 
         max_steps_setup = workspace.max_steps_setup, 
-        max_steps_verify = workspace.max_steps_verify, 
-        timeout = workspace.timeout
+        max_steps_verify = workspace.max_steps_verify
     )
     logger = workspace.logger
     initial_state = AgentState.create(
@@ -37,6 +36,7 @@ def setup(instance: dict, workspace: WorkSpace):
         result_path=workspace.result_path,
         date=instance.get("created_at", None),
         platform=workspace.platform,
+        command_timeout=workspace.timeout,
     )
 
     final_state = initial_state
@@ -65,8 +65,7 @@ def organize(instance: dict, workspace: WorkSpace):
         AgentState: Final state after workflow completion
     """
     workflow = define_organize_workflow(
-        max_steps = workspace.max_steps_organize,
-        timeout = workspace.timeout
+        max_steps = workspace.max_steps_organize
     )
     logger = workspace.logger
     initial_state = AgentState.create(
@@ -80,6 +79,7 @@ def organize(instance: dict, workspace: WorkSpace):
         result_path=workspace.result_path,
         date=instance.get("created_at", None),
         platform=workspace.platform,
+        command_timeout=workspace.timeout,
     )
 
     final_state = initial_state
