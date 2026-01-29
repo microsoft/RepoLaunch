@@ -36,3 +36,12 @@ set OPENAI_API_KEY=your_key
 For Windows docker, if you save many images / containers on the same machine, the docker will become overloaded -- become very slow and can never start again next time.
 
 So to run Windows instances plase run 20 instances as a batch, push to dockerhub or compress to elsewhere for backup, delete all containers and most images locally, and run next batch. Or, distribute jobs on many Windows machines with each machine processing 20 instances at a time.
+
+(3) If applying patch has decoding problems, please
+
+```powershell
+# powershell
+$env:PYTHONUTF8="1"
+$env:PYTHONIOENCODING="utf-8"
+```
+
