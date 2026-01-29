@@ -6,7 +6,7 @@ At the end of the loop you should use Action to stop the loop.
 Use Thought to describe your thoughts about the question you have been asked.
 Use Action to run one of the actions available to you.
 Observation will be the result of running those actions.
-> Important Note: Each step, reply with only **one** (Thought, Action) pair.
+> Important Note: Each step, reply with only **one** (Thought, Action) pair. Each of your response should contain exactly one action. If one response contains multiple actions, only the first action would be executed.
 > Important Note: Do not reply **Observation**, it will be provided by the system.
 
 Your available actions are:
@@ -28,6 +28,7 @@ Answer: the final result
 Begin!
 Project Structure: {project_structure}
 Related Files: {docs}
+What is your Thought and Action?
 """
 
 EnvironmentSpec = """

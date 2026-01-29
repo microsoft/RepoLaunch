@@ -114,7 +114,7 @@ def parse_verify_action(response: str) -> VerifyAction | None:
 
 
 @auto_catch
-def organize_unit_test(state: AgentState, max_steps: int, timeout: int = 30) -> dict:
+def organize_unit_test(state: AgentState, max_steps: int) -> dict:
     """
     ReAct agent for environment verification through test command execution.
     
@@ -126,7 +126,7 @@ def organize_unit_test(state: AgentState, max_steps: int, timeout: int = 30) -> 
         dict: Updated state with verification results and success status
     """
 
-    pertest_command: str = "{{}}"
+    pertest_command: str = "{}"
     test_status: dict[str,str] = state["test_status"]
     testcase_list: list[str] = [i for i in test_status.keys()]
     parser: str = ""
@@ -235,13 +235,9 @@ If you think it is impossible to run each testcase separately, give up by output
     prefix_messages = len(messages)
     commands = []
     step = 0
-    start_time = time.time()
     success = False
     logger.info("-" * 10 + "Start unit test conversation" + "-" * 10)
     while step < max_steps:
-        if time.time() - start_time > timeout * 60:
-            logger.info(f"Reached global timeout of {timeout} minutes")
-            break
         step += 1
         # uses a window to avoid exceed context
         if len(messages) < VERIFY_CONVERSATION_WINDOW + prefix_messages:

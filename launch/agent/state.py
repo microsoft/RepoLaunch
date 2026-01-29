@@ -78,6 +78,7 @@ class AgentState(State):
     original_parser: str | None
     original_test_status: dict[str, str] | None
     result: str
+    command_timeout: int # minute
 
     @classmethod
     def create(
@@ -94,6 +95,7 @@ class AgentState(State):
         max_search_results: int = 3,
         debug: bool = False,
         platform: str = "linux",
+        command_timeout: int = 30,
     ) -> Self:
         """
         Create a new AgentState instance with default values.
@@ -159,6 +161,7 @@ class AgentState(State):
             original_parser=None,
             original_test_status=None,
             result="",
+            command_timeout=command_timeout,
         )
 
 

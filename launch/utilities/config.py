@@ -62,7 +62,7 @@ def load_config(config_path: str) -> Config:
             "model_config",
             {
                 "model_name": "gpt-4o-20241120",
-                "temperature": 0.0,
+                "temperature": None,
             },
         ),
         workspace_root=config_data.get("workspace_root"),
@@ -76,7 +76,7 @@ def load_config(config_path: str) -> Config:
         max_steps_setup=config_data.get("max_steps_setup", 20),
         max_steps_verify=config_data.get("max_steps_verify", 20),
         max_steps_organize=config_data.get("max_steps_organize", 20),
-        timeout=config_data.get("timeout", 30),
+        timeout=config_data.get("cmd_timeout", 30), # timeout of a single command, in minute
         image_prefix=config_data.get("image_prefix", "repolaunch/dev"),
         mode=config_data.get(
             "mode", 
