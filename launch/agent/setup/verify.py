@@ -46,10 +46,11 @@ class VerifyAction(BaseModel):
         <command>...</command>
         e.g. run pytest with detailed output turned on: <command>pytest -rA</command>
         e.g. <command>tox -- -rA</command>
-    Issue: stop the verify loop once you think the setup is complete, and reply with the issue of the setup:
+    Issue: stop the verify loop and submit your conclusion once you have correctly run the test commands, and if the setup of the repo has problems, report the issues of the setup in this action:
         <issue>...</issue>
-        e.g. <issue>some dependency is missing, run `pytest` failed</issue>
-        e.g. <issue>None</issue> if you think the setup is correct (remember to tolerate a few test cases failures as long as most tests pass)
+        Case 1: If setup of the repo is not successful and you need to report issues to your colleagues to ask them retry the setup step, please output <issue>issue description</issue> such as <issue>some dependency is missing, run `pytest` failed</issue>, <issue>most tests are skipped, the repo is not fully built</issue> and so on.
+        Case 2: If setup is correct and no issues are detected, so that you can submit the built repo, please output <issue>None</issue>. Remember to tolerate a few test case failures as long as most tests, say, over 85% of the tests can pass. So if most tests can pass, please still output <issue>None</issue>.
+        Note if you report issues in this action (by outputting <issue>issue description</issue>) the setup would be tagged as failure. So if only very few tests (say, less than 15%) fail, please only output <issue>None</issue> to tag the built repo as success.
     """
 
     action: Literal["command", "issue"] = Field(
