@@ -1,5 +1,15 @@
 # Development on Windows
 
+## Machine Requirements
+
+CPU cores: >=12
+
+RAM: >=32GB
+
+Disk: Local Disk and >=800GB, SSD preferred
+
+Internet speed: Download >= 300Mbps; Upload >= 75 Mbps
+
 ## To run on windows, you need to
 
 (1) Download docker desktop on windows.
