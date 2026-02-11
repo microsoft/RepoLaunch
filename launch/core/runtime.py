@@ -733,7 +733,9 @@ if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) {
                 f"git clone {url} /testbed && cd /testbed && git reset --hard {base_commit}"
             )
         
-        assert int(res.metadata.exit_code) == 0, f"Git clone/reset failed: \n{res.output}"
+        if int(res.metadata.exit_code) != 0:
+            self.cleanup()
+            raise RumtimeError(f"Git clone/reset failed: \n{res.output}")
 
         return session
 
