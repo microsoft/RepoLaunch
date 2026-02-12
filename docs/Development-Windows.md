@@ -55,3 +55,13 @@ $env:PYTHONUTF8="1"
 $env:PYTHONIOENCODING="utf-8"
 ```
 
+(4) If you see the following error when repolaunch commits container to image:
+
+```
+500 Server Error for
+http+docker://localnpipe/v1.52/commit?container=abfe0abab2fbba111ef56d0cd6af0ff4ec327de999f34d6528b1c044125613c9&repo=starryzhang%2Fsweb.eval.win&tag=szimek__signature_pa
+d-835_windows&pause=True: Internal Server Error ("re-exec error: exit status 1: output: hcsshim::ImportLayer failed in Win32: The system cannot find the path specified.
+(0x3)")
+```
+
+We currently consider it the bug of windows docker and does not count it into our success rate.
