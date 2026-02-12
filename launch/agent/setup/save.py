@@ -5,7 +5,7 @@ import time
 from launch.agent.state import AgentState, auto_catch
 from launch.utilities.language_handlers import get_language_handler
 
-@auto_catch
+#@auto_catch
 def save_setup_result(state: AgentState) -> dict:
     """
     Save the launch result to a JSON file and commit successful setup to Docker image.
