@@ -2,6 +2,8 @@
 
 ## Machine Requirements
 
+OS version: Windows Pro or Enterprise 10 / 11. Simple Windows Personal / Family / Home version does not support docker at all!
+
 CPU cores: >=12
 
 RAM: >=32GB
@@ -10,13 +12,18 @@ Disk: Local Disk and >=800GB, SSD preferred
 
 Internet speed: Download >= 300Mbps; Upload >= 75 Mbps
 
-## To run on windows, you need to
+## To run on windows, you need to set up ...
 
 (1) Download docker desktop on windows.
 
-You need to turn on virtualization support on windows in BIOS when starting your computer.
+(2) If you want to build repo on windows image, switch to Windows containers in docker settings. (But of course windows machine supports Linux image.)
 
-(2) If you want to build repo on windows image, switch to Windows containers in docker settings.
+You will be prompted by docker desktop to turn on virtualization (and also container if you choose windows container) features like this:
+
+```powershell
+# Search Powershell in the Search Bar and right click and choose 'run as Administrator'
+Enable-WindowsOptionalFeature -Online -FeatureName $("Microsoft-Hyper-V", "Containers") -All
+```
 
 (3) Enable long path in git. Open windows powershell as administrator,
 
@@ -24,7 +31,9 @@ You need to turn on virtualization support on windows in BIOS when starting your
 git config --global core.longpaths true
 ```
 
-(4) Enable long path in Windows system.
+(4) Enable long path in Windows system. 
+
+Go to Registry Editor, in the top of registry editor enter path HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem, find the item LongPathsEnabled, double click it and change the value to 1.
 
 and you can now run all the steps in the pipeline.
 
