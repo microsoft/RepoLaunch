@@ -67,6 +67,7 @@ def save_setup_result(state: AgentState) -> dict:
             logger.error(err_msg)
             state["success"] = False
             state["exception"] = err_msg
+            exception = err_msg
             
 
     # in case unexpected error escapes previous clean-up
