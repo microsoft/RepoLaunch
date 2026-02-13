@@ -61,7 +61,13 @@ def save_setup_result(state: AgentState) -> dict:
             logger.info(f"Image {key}:{tag} committed successfully.")
             state["docker_image"] = f"{key}:{tag}"
         except Exception as e:
-            raise Exception(f"Failed to commit image: {e}. If timeout please commit and clean the container manually.")
+            import traceback
+            err_msg = f"{traceback.format_exc()}\nFailed to commit image: {e}.\n"
+            print(err_msg, flush=True)
+            logger.error(err_msg)
+            state["success"] = False
+            state["exception"] = err_msg
+            
 
     # in case unexpected error escapes previous clean-up
     if os.path.exists(state["repo_root"]):
