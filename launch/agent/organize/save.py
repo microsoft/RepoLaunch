@@ -68,6 +68,7 @@ def save_organize_result(state: AgentState) -> dict:
             logger.error(err_msg)
             state["success"] = False
             state["exception"] = err_msg
+            exception = err_msg
 
     # in case unexpected error escapes previous clean-up
     if os.path.exists(state["repo_root"]):
