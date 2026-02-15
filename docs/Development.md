@@ -51,7 +51,7 @@ RepoLaunch is a two step process, the first step is to setup the repo, installin
 | `max_trials`       | integer |   how many rounds of setup-verify loop agent can attempt, default 1   |
 | `max_steps_setup`  | integer |   how many steps agent can attemp to setup the environment, default 20   |
 | `max_steps_verify` | integer |   how many steps agent can attemp to verify the setup, default 20   |
-| `cmd_timeout`      | integer |   time limit of llm's each shell command, default 30 min   |
+| `cmd_timeout`      | integer |   time limit in minute of llm's each shell command, default 30 min. Suggested: 60 for Linux and 90 for Windows.   |
 | `image_prefix`     | string  | prefix of the output_image in the format {namespace}/{dockerhub_repo}, defaults to repolaunch/dev |
 
 
