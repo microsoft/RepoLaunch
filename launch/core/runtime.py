@@ -352,8 +352,11 @@ function prompt {
 
         raise TypeError(f"Don't know how to write to {type(self.sock).__name__}")
 
-    def send_command(self, command: str) -> CommandResult:
-        timeout = self.command_timeout * 60 # in seconds
+    def send_command(self, command: str, timeout: int|None = None) -> CommandResult:
+        '''
+        timeout: deprecated arg for backward compatibility. In minute. If not specified use self.timeout from object inittialization.
+        '''
+        timeout = self.command_timeout * 60 if timeout is None else timeout * 60 # in seconds
 
         # Normalize newline semantics for interactive shells
         if self.platform == "windows":
