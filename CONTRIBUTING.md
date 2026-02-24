@@ -19,14 +19,16 @@ or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any addi
 
 1. Welcome issues and PRs related to the bugs and inefficiencies of out agent.
 
-2. We found that many threads created from launch/run.py would have "Result Empty Error", which means the last agent state is not saved to disk and not passed back to the main function in launch/run.py. We think it's mostly because docker commit in save.py takes too long time (usually 10min - 120 min) -- it will return read timeout and so often make the thread DEAD... Future works would make docker commit detached in a separate thread/process to solve the problem. Maybe there's also problem in docker concurrency and old Langchain agent apis... Please help us find that problem and fix it!
+2. Add unit tests to ./tests folder. Add GitHub workflow to run ./tests automatically.
 
-3. In [launch/utilities/language_handlers.py](launch/utilities/language_handlers.py), you can see language-specific and operating-system-specific prompts and base images. 
+3. We found that many threads created from launch/run.py would have "Result Empty Error", which means the last agent state is not saved to disk and not passed back to the main function in launch/run.py. We think it's mostly because docker commit in save.py takes too long time (usually 10min - 120 min) -- it will return read timeout and so often make the thread DEAD... Future works would make docker commit detached in a separate thread/process to solve the problem. Maybe there's also problem in docker concurrency and old Langchain agent apis... Please help us find that problem and fix it!
+
+4. In [launch/utilities/language_handlers.py](launch/utilities/language_handlers.py), you can see language-specific and operating-system-specific prompts and base images. 
 Please help us improve these prompts and add new base images. 
 Base images need update when the latest version of a language updates. 
 Please add official new images if official sources provide them; 
 otherwise you could help us build customized ones and upload to dockerhub public repos, there are example dockerfiles in [launch/utilities/dockerfiles](launch/utilities/dockerfiles).
 
-4. To improve the success rate / lower down early submit hallucination (unsuccessful build but submit) in the setup stage; 
+5. To improve the success rate / lower down early submit hallucination (unsuccessful build but submit) in the setup stage; 
 and increase the extraction coverage of per-testcase status and per-testcase command from test log in the organize stage -- any suggestions and improvements to the agent workflow is welcome.
 
