@@ -2,6 +2,8 @@
 
 *Turning Any Codebase into Testable Sandbox Environment*
 
+Paper: [RepoLaunch: Automating Build&Test Pipeline of Code Repositories on ANY Language and ANY Platform](https://arxiv.org/abs/2603.05026)
+
 RepoLaunch now supports 
 - All mainstram languages : C, C++, C#, Python, Java, Node.js (JS & TS), Go, Rust.
 - Building on linux-arch & windows-arch docker images.
@@ -13,7 +15,7 @@ To use RepoLaunch Agent to launch your repository, please refer to [Development.
 RepoLaunch can:
 1) Install all dependencies and build the repository, delivered as a docker image;
 2) Organize the command to rebuild the repository inside the container after modifications;
-3) Organize command to test the repository and output testcase-status mapping, and optionally find per-testcase running command.
+3) Organize command to test the repository, write a parser to parse test output into testcase-status mapping, and optionally find per-testcase running command.
 
 The basic workflow of RepoLaunch agent is as follows:
 
@@ -38,11 +40,11 @@ We encourage new research projects to design new kinds of SWE-tasks, with task c
 ## Citations
 
 ```bibtex
-@article{zhang2025swebenchgoeslive,
-  title={SWE-bench Goes Live!},
-  author={Linghao Zhang and Shilin He and Chaoyun Zhang and Yu Kang and Bowen Li and Chengxing Xie and Junhao Wang and Maoquan Wang and Yufan Huang and Shengyu Fu and Elsie Nallipogu and Qingwei Lin and Yingnong Dang and Saravan Rajmohan and Dongmei Zhang},
-  journal={arXiv preprint arXiv:2505.23419},
-  year={2025}
+@article{li2026repolaunch,
+  title={RepoLaunch: Automating Build\&Test Pipeline of Code Repositories on ANY Language and ANY Platform},
+  author={Li, Kenan and Li, Rongzhi and Zhang, Linghao and Jin, Qirui and Zhu, Liao and Huang, Xiaosong and Zhang, Geng and Zhang, Yikai and He, Shilin and Xie, Chengxing and others},
+  journal={arXiv preprint arXiv:2603.05026},
+  year={2026}
 }
 ```
 
