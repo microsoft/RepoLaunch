@@ -150,7 +150,7 @@ log: str = instance.test()
 status: dict = instance.parse_test_log(log)
 
 # Equivalently:
-status: dict = instance.build_test_parse(log)
+status: dict = instance.build_test_parse(verbose = True)
 
 print(status)
 # {"testcase1": "pass", "testcase2": "fail", "testcase3": "skip"}
