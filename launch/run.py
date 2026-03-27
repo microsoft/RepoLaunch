@@ -65,6 +65,7 @@ def setup_instance(instance, config, workspace_root):
                 return "fail", instance["instance_id"], "Launch failed"
 
     try:
+        print("Setting up", instance["instance_id"], "...", flush=True)
         workspace = prepare_workspace(workspace_root, instance, config)
         result = safe_read_result(setup(instance, workspace), result_path, lock)
         if result["completed"]:
@@ -122,6 +123,7 @@ def organize_instance(instance, config, workspace_root):
                 return "fail", instance["instance_id"], "Organize failed"
 
     try:
+        print("Organizing", instance["instance_id"], "...", flush=True)
         workspace = prepare_workspace(workspace_root, instance, config, log_file="organize.log")
         result = safe_read_result(organize(instance, workspace), result_path, lock)
         if result["organize_completed"]:
@@ -210,6 +212,7 @@ def run_setup(config: Config, dataset: list):
                                 success=progress.tasks[0].fields["success"] + 1,
                             )
                         console.print(f"[green]Success![/green] {instance_id}")
+                    print(flush=True)
                 except TimeoutError:
                     # Find the instance_id for this future
                     instance_id = futures.get(future, {}).get("instance_id", "unknown")
@@ -349,11 +352,24 @@ def main():
         description="RepoLaunch - Turn any codebase into a testable sandbox environment"
     )
     argparser.add_argument(
-        "--config-path", type=str, required=True, help="Path to configuration file"
+        "config_path",
+        nargs="?",
+        default=None,
+        help="Path to configuration file",
+    )
+    argparser.add_argument(
+        "--config-path",
+        "--config_path",
+        dest="config_path_opt",
+        type=str,
+        default=None,
+        help="Path to configuration file",
     )
     args = argparser.parse_args()
-
-    run_launch(args.config_path)
+    config_path = args.config_path if args.config_path is not None else args.config_path_opt
+    if config_path is None:
+        argparser.error("config path is required (use positional CONFIG_PATH or --config-path)")
+    run_launch(config_path)
 
 
 if __name__ == "__main__":

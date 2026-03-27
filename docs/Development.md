@@ -2,16 +2,31 @@
 
 ## Run RepoLaunch
 
-Before getting started, please set your `OPENAI_API_KEY` and `TAVILY_API_KEY` environment variable. We use [tavily](https://www.tavily.com/) for LLM search engine support.
+```shell
+pip install -e .
+```
 
 We provide an example input file `data/examples/dataset.jsonl` and a run config `data/examples/config.json` in [examples](../data/examples) to help you quickly go through the launch process.
 
+Before getting started, please set your `TAVILY_API_KEY` environment variable. We use [tavily](https://www.tavily.com/) for LLM search engine support.
+
 ```shell
-pip install -e .
-
 export TAVILY_API_KEY=...
+```
 
-python -m launch.run --config-path test-config.json
+We use LiteLLM for max compatibility of LLM API, AND to enable custom API deployment for agentic training. Export your LLM API KEY, say OPENAI_API_KEY, ANTHROPIC_API_KEY... 
+
+```bash
+export OPENAI_API_KEY=...
+```
+
+If your llm provider uses user identity login for API usage, go to modify launch/launch/utilities/llm.py.
+
+Start repo launch process:
+
+```shell
+launch data/examples/config.json
+# equivalently: python -m launch.run --config-path data/examples/config.json
 ```
 
 For helpers to run RepoLaunch on Windows, see [Development-Windows.md](./Development-Windows.md)
@@ -23,9 +38,9 @@ For the input data used to set up the environment, we require the following fiel
 
 | Field        | Description                                                                 |
 |--------------|-----------------------------------------------------------------------------|
+| `instance_id`| Unique identifier of the instance                                           |
 | `repo`       | Full name of the repository like {user_name}/{project_name}                                                |
 | `base_commit`| Commit to check out                                                         |
-| `instance_id`| Unique identifier of the instance                                           |
 | `language`   | Main language of the repo |
 | `created_at` | (Optional) Creation time of the instance, used to support time-aware environment setup, useful in Python |
 | `hints`      | (Optional)  Any hints for setting up the repo you want to give the agent, such as GitHub run checks info |
@@ -38,9 +53,8 @@ RepoLaunch is a two step process, the first step is to setup the repo, installin
 
 | Field              | Type    |  Description                                                                 |
 |--------------------|---------|-----------------------------------------------------------------------------|
-| `llm_provider_name`| string  |  Name of the LLM provider (e.g., "OpenAI", "AOAI")                          |
 | `print_to_console` | boolean |  Whether to print logs to console                                           |
-| `model_config`     | dict    |  Configuration for the LLM model (contains `model_name` and `temperature`)  |
+| `model_config`     | dict    |  Put all arguments for litellm response completion in this dict {"model": "openai/gpt-5.4", ...}. The "model" field should follow formats in litellm document, usually {provider_name}/{model_name}. Put other arguments for litellm response completion here, such as base_url, temperature, top_p. |
 | `workspace_root`   | string  |  Workspace folder for one run                                      |
 | `dataset`          | string  |  Path to the dataset file                                                    |
 | `instance_id`      | string  |  Specific instance ID to run, null to run all instances in the dataset      |
@@ -80,6 +94,8 @@ The configs required for this step:
 
 The per-instance output will be saved in `{workspace_root}/playground/{instance_id}/result.json`.
 
+LLM API logs (input/output/token_count/cost) will be saved in `{workspace_root}/playground/{instance_id}/llm/`
+
 ### Step 1 Setup
 
 | Field            | Description                                                                                      |
@@ -114,47 +130,55 @@ Summary would be saved to `{workspace_root}/organize.jsonl`
 
 ## Helper scripts
 
-### To use the output parser to parse test output:
+### To use launch result
 
 ```python
-from launch.core.runtime import SetupRuntime
-from launch.scripts.parser import run_parser
+from launch.api import LaunchedInstance
+import json
 
 # load an instance from organize.jsonl
+with open("..../organize.jsonl") as f:
+    instance_list = [json.loads(i) for i in f]
+instance_dict = instance_list[0]
 
-container = SetupRuntime.from_launch_image(instance["docker_image"], instance["instance_id"])
-container.send_command(";".join(instance["test_cmds"]))
-testlog = container.send_command(";".join(instance["print_cmds"])).output
-status = run_parser(instance["parser"], testlog)
+# Object Oriented API
+instance: LaunchedInstance = LaunchedInstance(instance_dict, "linux") # or "windows" for windows image
+
+### To use the output parser to parse test output:
+success, build_log = instance.build(verbose = False)
+log: str = instance.test()
+status: dict = instance.parse_test_log(log)
+
+# Equivalently:
+status: dict = instance.build_test_parse(log)
 
 print(status)
 # {"testcase1": "pass", "testcase2": "fail", "testcase3": "skip"}
 
-container.clean_up()
-```
+del instance # to release docker container
 
-### To evaluate the effect of a new diff patch:
+###### To evaluate the effect of a new diff patch ######
 
-```python
-from launch.core.runtime import SetupRuntime
-from launch.scripts.parser import run_parser
+instance: LaunchedInstance = LaunchedInstance(instance_dict, "linux")
 
-# load an instance from organize.jsonl
 # load your diff_patch
+# for example, for swe bench format instance:
+diff_patch = instance_dict["test_patch"]
 
-container = SetupRuntime.from_launch_image(instance["docker_image"], 
-                                            instance["instance_id"],
-                                            platform="linux")
-container.apply_patch(diff_patch, verbose=True)
-container.send_command(";".join(instance["rebuild_cmd"]))
-container.send_command(";".join(instance["test_cmds"]))
-after_patch_testlog = container.send_command(";".join(instance["print_cmds"])).output
-after_patch_status = run_parser(instance["log_parser"], after_patch_testlog)
+instance.apply_patch(diff_patch, verbose=True)
+after_patch_status = instance.build_test_parse(verbose = True)
+
+###### Other Utilities ######
 
 # if you need to save the changes
-# container.send_command("git commit -m 'apply new patch'")
-# container.commit(image_name="experiment", tag="1")
-container.cleanup()
+success, log = instance.git_commit(your_message)
+instance.commit_to_image(image_name="experiment", tag="1")
+
+# for custom bash command into the docker container:
+res = instance.container.send_command(your_command)
+print(res.metadata.exit_code, res.output, sep = "\n")
+
+del instance # to release docker container
 ```
 
 ### If launch was interrupted, you can collect summary manually

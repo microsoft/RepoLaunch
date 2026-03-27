@@ -58,12 +58,14 @@ def locate_related_file(state: AgentState) -> dict:
     """
     llm = state["llm"]
     logger = state["logger"]
+    repo_structure = state["repo_structure"]
     locate_prompt = HumanMessage(
-        content=prompt.format(structure=state["repo_structure"])
+        content=prompt.format(structure=repo_structure)
     )
     if len(locate_prompt.content) > THRESHOLD:
+        repo_structure = view_repo_structure(state["repo_root"], 2)
         locate_prompt = HumanMessage(
-            content=prompt.format(structure=view_repo_structure(state["repo_root"], 1))
+            content=prompt.format(structure=repo_structure)
         )
     
     response = llm.invoke([locate_prompt])
@@ -120,7 +122,7 @@ def locate_related_file(state: AgentState) -> dict:
         "messages": [locate_prompt, response],
         "docs": docs,
         # We do not require the full repo structure later
-        "repo_structure": view_repo_structure(state["repo_root"], 1),
+        "repo_structure": repo_structure,
     }
 
 

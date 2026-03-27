@@ -11,7 +11,6 @@ class Config:
     Configuration settings for repository launch operations.
     
     Attributes:
-        llm_provider_name (str): Name of the LLM provider (e.g., "AOAI")
         print_to_console (bool): Whether to print logs to console
         model_config (dict): Configuration for the LLM model
         workspace_root (str): Root directory for workspace creation
@@ -21,7 +20,6 @@ class Config:
         max_workers (int): Number of parallel workers for processing
         overwrite (bool): Whether to overwrite existing results
     """
-    llm_provider_name: str
     print_to_console: bool
     model_config: dict
     workspace_root: str
@@ -56,12 +54,11 @@ def load_config(config_path: str) -> Config:
         config_data = json.load(f)
 
     return Config(
-        llm_provider_name=config_data.get("llm_provider_name", "AOAI"),
         print_to_console=config_data.get("print_to_console", True),
         model_config=config_data.get(
             "model_config",
             {
-                "model_name": "gpt-4o-20241120",
+                "model": "openai/gpt-4o",
                 "temperature": None,
             },
         ),

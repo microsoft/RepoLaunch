@@ -125,7 +125,6 @@ def prepare_workspace(
     llm_log_folder = instance_folder / "llm"
     llm_log_folder.mkdir(parents=True, exist_ok=True)
     llm = LLMProvider(
-        llm_provider=config.llm_provider_name,
         log_folder=llm_log_folder,
         **config.model_config,
     )

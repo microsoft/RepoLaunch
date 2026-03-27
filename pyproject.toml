@@ -12,8 +12,7 @@ dependencies = [
     "langchain==0.3.26",
     "langchain-community==0.3.27",
     "langchain-core==0.3.68",
-    "langchain-openai==0.3.27",
-    "langchain-anthropic",
+    "litellm",
     "langgraph==0.5.2",
     "pydantic==2.11.7",
     "requests>=2.32.4",
@@ -21,10 +20,11 @@ dependencies = [
     "tenacity>=9.1.2",
     "tornado>=6.5.1",
     "typing-extensions>=4.14.1",
-    "pygithub",
-    "openai", 
-    "azure-identity-broker"
+    "pygithub"
 ]
+
+[project.scripts]
+launch = "launch.run:main"
 
 [build-system]
 requires = ["setuptools>=61"]

@@ -3,10 +3,8 @@
         "setup": true,
         "organize": true
     },
-    "llm_provider_name": "OpenAI",
-    "model_config": {        
-        "model_name": "gpt-4.1-20250414",
-        "temperature": 0.0
+    "model_config": {
+        "model": "openai/gpt-5.4"
     },
     "workspace_root": "data/examples/",
     "dataset": "data/examples/dataset.jsonl",

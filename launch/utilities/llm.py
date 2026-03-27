@@ -1,11 +1,17 @@
 """
-LLM provider abstraction for various language model services.
+LLM provider abstraction backed by LiteLLM.
 """
 import os
 from functools import wraps
-from typing import List, Optional
-from langchain_core.messages import BaseMessage, HumanMessage
+from typing import Any, List
+
+import litellm
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from tenacity import retry, stop_after_attempt, wait_exponential_jitter
+
+# Silence LiteLLM provider-debug prints (e.g. repeated "Provider List" lines).
+litellm.suppress_debug_info = True
+litellm.turn_off_message_logging = True
 
 
 def logged_invoke(invoke_func):
@@ -20,6 +26,24 @@ def logged_invoke(invoke_func):
     """
     @wraps(invoke_func)
     def wrapper(self, messages: List[BaseMessage]) -> BaseMessage:  
+
+        def _extract_usage_and_cost(message: BaseMessage) -> tuple[int | None, int | None, float | None]:
+            usage_metadata = getattr(message, "usage_metadata", None) or {}
+            response_metadata = getattr(message, "response_metadata", None) or {}
+
+            input_tokens = usage_metadata.get("input_tokens")
+            output_tokens = usage_metadata.get("output_tokens")
+            cost = response_metadata.get("cost")
+
+            token_usage = response_metadata.get("token_usage", {})
+            if input_tokens is None:
+                input_tokens = token_usage.get("prompt_tokens")
+            if output_tokens is None:
+                output_tokens = token_usage.get("completion_tokens")
+
+            return input_tokens, output_tokens, cost
+
+
         if self.log_folder is None:
             response: BaseMessage = invoke_func(self, messages)
             return response
@@ -38,43 +62,38 @@ def logged_invoke(invoke_func):
         log_file_path = os.path.join(log_folder, f"{next_number}.md")
 
         response: BaseMessage = invoke_func(self, messages)
+        input_tokens, output_tokens, cost = _extract_usage_and_cost(response)
 
         with open(log_file_path, "w", encoding="utf-8") as f:
             f.write("##### LLM INPUT #####\n")
             f.write("\n".join([m.pretty_repr() for m in messages]))
             f.write("\n##### LLM OUTPUT #####\n")
             f.write(response.pretty_repr())
+            f.write("\n\n##### LLM METRICS #####\n")
+            f.write(f"- Input tokens: {input_tokens if input_tokens is not None else 'N/A'}\n")
+            f.write(f"- Output tokens: {output_tokens if output_tokens is not None else 'N/A'}\n")
+            f.write(f"- Cost (USD): ${cost:.8f}\n" if cost is not None else "- Cost (USD): N/A\n")
         return response
     return wrapper
 
 
 class LLMProvider:
     """
-    Unified interface for different LLM providers with logging and retry capabilities.
-    
-    Supports Azure OpenAI, OpenAI, and Anthropic models with automatic logging
-    of interactions and built-in retry logic for robustness.
+    Unified LLM interface with logging and retry, using ``litellm.completion``.
     """
-    def __init__(self, llm_provider: str, log_folder: str | None = "./llm_logs", **kwargs):
-        """
-        Initialize LLM provider with specified backend.
-        
-        Args:
-            llm_provider (str): Provider name ("AOAI", "OpenAI", "Anthropic")
-            log_folder (str | None): Directory for interaction logs, None disables logging
-            **kwargs: Model configuration parameters (model_name, temperature, etc.)
-        """
-        self.llm_provider = llm_provider
-        self.log_folder = log_folder
 
-        llm_instance_map = {
-            "AOAI": AzureOpenAIModel,
-            "OpenAI": OpenAIModel,
-            "Anthropic": AnthropicModel,
-        }
-        if self.llm_provider not in llm_instance_map:
-            raise ValueError(f"Unsupported LLM provider: {self.llm_provider}")
-        self.llm_instance = llm_instance_map[self.llm_provider](**kwargs)
+    def __init__(self, log_folder: str | None = "./llm_logs", **kwargs):
+        """
+        Initialize LLM provider.
+
+        Args:
+            log_folder (str | None): Directory for interaction logs, None disables logging.
+            **kwargs: Arbitrary LiteLLM completion arguments passed to
+                ``litellm.completion(messages=messages, **kwargs)``.
+        """
+        self.log_folder = log_folder
+        self.model_config = kwargs
+        self.llm_instance = LiteLLMModel(**kwargs)
 
     @logged_invoke
     @retry(
@@ -94,114 +113,83 @@ class LLMProvider:
         return self.llm_instance.invoke(messages)
 
 
-class OpenAIModel:
-    """OpenAI model implementation with API key authentication."""
-    def __init__(self, model_name: str, temperature: Optional[float] = None):
-        """
-        Initialize OpenAI model.
-        
-        Args:
-            model_name (str): Name of the OpenAI model
-            temperature (float): Sampling temperature for responses
-        """
-        self.model_name = model_name
-        self.temperature = temperature
+class LiteLLMModel:
+    """LiteLLM model implementation."""
 
-        from langchain_openai import ChatOpenAI
-        
-        # Use environment variable OPENAI_API_KEY for authentication
-        self.llm = ChatOpenAI(
-            # base_url="https://openrouter.ai/api/v1",
-            model=model_name,
-            temperature=temperature,
-        )
+    def __init__(self, **kwargs):
+        self.completion_args = kwargs
+
+    def _to_litellm_message(self, message: BaseMessage) -> dict[str, Any]:
+        role = "user"
+        name = getattr(message, "name", None)
+        tool_call_id = getattr(message, "tool_call_id", None)
+
+        msg_type = getattr(message, "type", "")
+        if msg_type == "system":
+            role = "system"
+        elif msg_type == "ai":
+            role = "assistant"
+        elif msg_type == "tool":
+            role = "tool"
+
+        payload: dict[str, Any] = {"role": role, "content": message.content}
+        if name:
+            payload["name"] = name
+        if tool_call_id:
+            payload["tool_call_id"] = tool_call_id
+
+        if role == "assistant":
+            tool_calls = getattr(message, "tool_calls", None)
+            if tool_calls:
+                payload["tool_calls"] = tool_calls
+        return payload
+
+    def _safe_completion_cost(self, response: Any, model: str | None = None) -> float:
+        try:
+            return float(litellm.completion_cost(completion_response=response, model=model))
+        except Exception:
+            return 0.0
     
     def invoke(self, messages: List[BaseMessage]) -> BaseMessage:
-        """
-        Invoke OpenAI model with messages.
-        
-        Args:
-            messages (List[BaseMessage]): Conversation messages
-            
-        Returns:
-            BaseMessage: Model response
-        """
-        return self.llm.invoke(messages)
+        payload = [self._to_litellm_message(message) for message in messages]
 
-
-class AnthropicModel:   
-    """Anthropic model implementation with API key authentication."""
-    def __init__(self, model_name: str, temperature: Optional[float] = None):
-        """
-        Initialize Anthropic model.
-        
-        Args:
-            model_name (str): Name of the Anthropic model
-            temperature (float): Sampling temperature for responses
-        """
-        self.model_name = model_name
-        self.temperature = temperature
-
-        from langchain_anthropic import ChatAnthropic
-        
-        # Use environment variable ANTHROPIC_API_KEY for authentication
-        self.llm = ChatAnthropic(
-            model=model_name,
-            temperature=temperature,
+        response = litellm.completion(
+            messages=payload, 
+            **self.completion_args
         )
-    
-    def invoke(self, messages: List[BaseMessage]) -> BaseMessage:
-        """
-        Invoke Anthropic model with messages.
-        
-        Args:
-            messages (List[BaseMessage]): Conversation messages
-            
-        Returns:
-            BaseMessage: Model response
-        """
-        return self.llm.invoke(messages)
 
+        choice = response.choices[0].message
+        content = choice.content if getattr(choice, "content", None) is not None else ""
+        usage = getattr(response, "usage", None)
+        input_tokens = getattr(usage, "prompt_tokens", None)
+        output_tokens = getattr(usage, "completion_tokens", None)
+        total_tokens = getattr(usage, "total_tokens", None)
+        cost = self._safe_completion_cost(response, model=self.completion_args.get("model"))
 
-class AzureOpenAIModel:
-    """Azure OpenAI model implementation with token-based authentication."""
-    def __init__(self, model_name: str, temperature: Optional[float] = None):
-        """
-        Initialize Azure OpenAI model.
-        
-        Args:
-            model_name (str): Name of the Azure OpenAI model
-            temperature (float): Sampling temperature for responses
-        """
-        self.model_name = model_name
-        self.temperature = temperature
-
-        from langchain_openai import AzureChatOpenAI
-
-        self.llm = AzureChatOpenAI(  # Directly initialize the instance
-            model=model_name,
-            temperature=temperature,
+        return AIMessage(
+            content=content,
+            usage_metadata={
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": total_tokens,
+            },
+            response_metadata={
+                "model": getattr(response, "model", self.completion_args.get("model")),
+                "token_usage": {
+                    "prompt_tokens": input_tokens,
+                    "completion_tokens": output_tokens,
+                    "total_tokens": total_tokens,
+                },
+                "cost": cost,
+            },
         )
-    
-    def invoke(self, messages: List[BaseMessage]) -> BaseMessage:
-        """
-        Invoke Azure OpenAI model with messages.
-        
-        Args:
-            messages (List[BaseMessage]): Conversation messages
-            
-        Returns:
-            BaseMessage: Model response
-        """
-        return self.llm.invoke(messages)
 
 if __name__ == "__main__":
-    llm_provider = "AOAI"
-    model_config = {        
-        "model_name": "gpt-4o-20241120",
+    model_config = {
+        "model": "openai/gpt-4o",
         "temperature": 0.0,
     }
-    llm = LLMProvider(llm_provider, log_folder="./llm_logs", **model_config)
+    llm = LLMProvider(log_folder="./llm_logs", **model_config)
     messages = [HumanMessage(content="What is the capital of France?")]
     res = llm.invoke(messages)
     print(res)

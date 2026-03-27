@@ -8,6 +8,17 @@ RepoLaunch now supports
 - All mainstram languages : C, C++, C#, Python, Java, Node.js (JS & TS), Go, Rust.
 - Building on linux-arch & windows-arch docker images.
 
+
+## Notifications
+
+RepoLaunch now uses LiteLLM to:
+  - ensure compatibility with all mainstream LLM providers
+  - enable local LLM deployment for agentic training (RFT, RL) based on launch results
+
+RepoLaunch now still uses traditional Thought-Action format for agent actions, because
+  - We find that many smaller open-source LMs cannot handle tool call field well.
+  - Thought Action in pure text content field ensures best compatibility and feasibility for smaller open-source LMs.
+
 ## Launch your Repository
 
 To use RepoLaunch Agent to launch your repository, please refer to [Development.md](./docs/Development.md)

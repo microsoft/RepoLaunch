@@ -75,6 +75,7 @@ class SetupObservation(BaseModel):
 
     content: str = Field("", description="The content of the observation")
     is_stop: bool = Field(False, description="Whether stop the setup loop")
+    exit_code: int = Field(0, description="Whether command ran successfully.")
 
 
 class SetupActionParser(ActionParser):
@@ -126,12 +127,12 @@ Please using following format after `Action: ` to make a valid action choice:
     if action.action == "command":
         session = state["session"]
         result = session.send_command(action.args)
-        return SetupObservation(content=result.to_observation(), is_stop=False)
+        return SetupObservation(content=result.to_observation(), is_stop=False, exit_code=result.metadata.exit_code)
     if action.action == "search":
         result = state["search_tool"].invoke(action.args)
-        return SetupObservation(content=json.dumps(result), is_stop=False)
+        return SetupObservation(content=json.dumps(result), is_stop=False, exit_code=0)
     if action.action == "stop":
-        return SetupObservation(content="", is_stop=True)
+        return SetupObservation(content="", is_stop=True, exit_code=0)
 
 
 @auto_catch
@@ -287,9 +288,9 @@ def setup(state: AgentState, max_steps: int) -> dict:
         logger.info("\n" + response.pretty_repr())
         messages.append(response)
         action = parse_setup_action(response.content)
-        if action and action.action == "command":
-            commands.append(action.args)
         observation = observation_for_setup_action(state, action)
+        if action and action.action == "command":
+            commands.append(f"{action.args}  (exit code: {observation.exit_code})")
         if observation.is_stop:
             break
         message = HumanMessage(f"Observation:\n{observation.content}")
