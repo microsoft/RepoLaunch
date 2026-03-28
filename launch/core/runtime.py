@@ -544,7 +544,8 @@ function prompt {
 
         _ = cls.pull_image(image_name)
         client = docker.from_env(timeout=7200) # commit added layers should finish in 2 hours
-        container_name = f"git-launch-{instance_id}-{str(uuid.uuid4())[:4]}"
+        container_id = instance_id.replace("/", "_")
+        container_name = f"git-launch-{container_id}-{str(uuid.uuid4())[:4]}"
         info = client.version()
         engine_os = (info.get("Os") or info.get("OSType") or "").lower() 
         # which operating system this code is running on, note windows can run linux containers, so engine_os != (container) platform
@@ -628,7 +629,7 @@ function prompt {
         client = docker.from_env(timeout=18000) 
         # commit a new image built from scratch should require many many hours
         # todo: make docker commit a separate thread / process, make it async to accelerate
-        container_id = instance["instance_id"]
+        container_id = instance["instance_id"].replace("/", "_")
         container_name = f"git-launch-{container_id}-{str(uuid.uuid4())[:4]}"
         info = client.version()
         engine_os = (info.get("Os") or info.get("OSType") or "").lower() 
