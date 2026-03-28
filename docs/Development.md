@@ -135,6 +135,7 @@ Summary would be saved to `{workspace_root}/organize.jsonl`
 ```python
 from launch.api import LaunchedInstance
 import json
+from typing import Literal
 
 # load an instance from organize.jsonl
 with open("..../organize.jsonl") as f:
@@ -144,13 +145,13 @@ instance_dict = instance_list[0]
 # Object Oriented API
 instance: LaunchedInstance = LaunchedInstance(instance_dict, "linux") # or "windows" for windows image
 
-### To use the output parser to parse test output:
+###### To use the testlog parser to get current test statuses ######
 success, build_log = instance.build(verbose = False)
 log: str = instance.test()
-status: dict = instance.parse_test_log(log)
+status: dict[str, Literal['pass', 'fail', 'skip']] = instance.parse_test_log(log)
 
 # Equivalently:
-status: dict = instance.build_test_parse(verbose = True)
+status: dict[str, Literal['pass', 'fail', 'skip']] = instance.build_test_parse(verbose = True)
 
 print(status)
 # {"testcase1": "pass", "testcase2": "fail", "testcase3": "skip"}
@@ -166,7 +167,7 @@ instance: LaunchedInstance = LaunchedInstance(instance_dict, "linux")
 diff_patch = instance_dict["test_patch"]
 
 instance.apply_patch(diff_patch, verbose=True)
-after_patch_status = instance.build_test_parse(verbose = True)
+after_patch_status: dict[str, Literal['pass', 'fail', 'skip']] = instance.build_test_parse(verbose = True)
 
 ###### Other Utilities ######
 
