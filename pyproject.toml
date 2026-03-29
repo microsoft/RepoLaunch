@@ -13,7 +13,7 @@ dependencies = [
     "langchain-community==0.3.27",
     "langchain-core==0.3.68",
     "litellm",
-    "langgraph==0.5.2",
+    "langgraph==1.0.10rc1",
     "pydantic==2.11.7",
     "requests>=2.32.4",
     "rich>=14.0.0",
