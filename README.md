@@ -39,14 +39,24 @@ The basic workflow of RepoLaunch agent is as follows:
 
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-### Use RepoLaunch for New Applications
+### Use RepoLaunch to Create New Software Engineering Benchmarks
 
 So far the major contribution of RepoLaunch is to create tasks for [SWE-bench-Live](https://github.com/microsoft/SWE-bench-Live), where the creation of SWE-tasks is based purely on scraping GitHub issues and PRs. Now SWE-bench-Live datasets have been used for benchmarking of LLMs and coding agents, and training (SFT/RL) of coding LLMs. 
 
-We encourage new research projects to design new kinds of SWE-tasks, with task creation automated by RepoLaunch.
+We encourage new research projects to design new kinds of SWE-tasks for LLM benchmarking and training, with task creation automated by RepoLaunch.
 
 
 ![RepoLaunch automated SWE dataset creation](docs/assets/2.png)
+
+### Improve Agentic Repository Build and Management Task based on RepoLaunch
+
+We encourage integrating more useful tool calls into RepoLaunch. For example, RAG tools to construct and retrieve memory database of repo launch experiences.
+
+We encourage training projects based on the rollout trajectories of RepoLaunch. For example, Rejection Fine-tuning and Reinforcement Learning of open source LMs.
+
+ - The agentic workflow is defined in `launch/core/workflow.py`
+ - The tool calls of each stage are defined in each stage definition file in `launch/agent/...`
+ - The llm calling is defined in `launch/utilities/llm.py`
 
 ## Citations
 
