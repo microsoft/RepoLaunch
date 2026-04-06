@@ -11,6 +11,8 @@ RepoLaunch now supports
 
 ## Notifications
 
+**[28/Mar/2026]**
+
 RepoLaunch now uses LiteLLM to:
   - ensure compatibility with all mainstream LLM providers
   - enable local LLM deployment for agentic training (RFT, RL) based on launch results
@@ -18,6 +20,8 @@ RepoLaunch now uses LiteLLM to:
 RepoLaunch now still uses traditional Thought-Action format for agent actions, because
   - We find that many smaller open-source LMs cannot handle tool call field well.
   - Thought Action in pure text content field ensures best compatibility and feasibility for smaller open-source LMs.
+
+**[01/Mar/2026]** Thanks [GLM-5 Foundation Model](https://arxiv.org/pdf/2602.15763) for using RepoLaunch to create executable environment for agentic RL!
 
 ## Launch your Repository
 
