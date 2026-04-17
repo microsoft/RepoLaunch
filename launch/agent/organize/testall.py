@@ -134,7 +134,7 @@ Search: search the web if you need some information, generate query and reply wi
     e.g. <search>how to fix 'No module named setuptools'</search>
 Parse: parse the test output with python script, wrap your python script in  
     <python>def parser(log:str)->dict[str, str]:\n\rreturn</python>
-    The "log" argument is the test case output, the system will automatically pass the last standard output into the function you define and give you execution results, so you only need to run the print command `cat ...` in the first command and then submit the python script in the second command, and then you will see the parsing result in the next observation.
+    The "log" argument is the test case output, the system will automatically pass the last standard output of the last shell command executed into the function you define and give you execution results, so you only need to run the print command ` cat < file name of your test output> ` in the first action and then submit your python parsing script in the second action, and then you will see the parsing result in the next observation.
     The test log would contain much noise, so you'd better use regex to parse the log, you must only use built-in python libs
     The first example parse script: <python>def parser(log: str) -> dict[str, str]:
     import re
@@ -353,6 +353,17 @@ def organize_test_cmd(state: AgentState, max_steps: int) -> dict:
             #    session = state["session"]
             #    test_output = session.send_command(print_command).output        
             result = run_parser(action.args, test_output)
+            if (not isinstance(result, dict)):
+                content = f"Your python parser script should return a dict[str, Literal['pass', 'fail', 'skip']]. However, your script returned type {type(result)}. Please adjust your parser script to make sure it returns the correct format."
+                return SetupObservation(content=content, is_stop=False)
+            if not result:
+                content = (
+                    f"Your parser did not extract any test status. It returned an empty dict: {result}.\n"
+                    "The system will only pass the last standard output of the last shell command executed into your parser function, so please make sure you have first executed a correct print command to print the test output and then run your parser to extract test status. \n"
+                    "If your print command is executed correctly but parser still returned empty result, please adjust your parser to make sure it can correctly parse the test output and extract test status of each test case. \n"
+                )
+                return SetupObservation(content=content, is_stop=False)
+            # if result is not correct, will not save to test_status
             test_status = json.dumps(result, indent = True)
             truncated_result = test_status
             if len(truncated_result) > 40000:
@@ -377,17 +388,23 @@ If successful, please submit.
                 content = f"""Your submission cannot be parsed correctly. Please using following format after `Action: ` to make a valid action choice: \n{VerifyAction.__doc__}"""
                 return SetupObservation(content=content, is_stop=False)
             
-            test_command, print_command, parser = res
-        
-            # Check if parser was executed and results obtained
-            if parser and test_status:
-                # Parser was executed and produced results
-                content = "Parser validated. Test analysis complete."
-                return SetupObservation(content=content, is_stop=True)
-            else:
-                # Parser was not executed or produced no results
-                content = "Note: Parser have not yet been validated. Please verify your parser runs correctly with <python>your script</python> before submission to finish the process."
+            test_command, print_command, confirmation = res
+
+            if not parser.strip():
+                content = "You have not yet provided a valid parser script. Please provide a valid parser script and validate it with <python>...</python> before submission."
                 return SetupObservation(content=content, is_stop=False)
+            
+            if (not test_status.strip()) or (not json.loads(test_status)):
+                content = (
+                    f"Your parser did not succeed in extracting any test status. It is currently empty: <test_status> \n{test_status} \n</test_status>. \n"
+                    "The system will only pass the last standard output of the last shell command executed into your parser function, so please make sure you have first executed a correct print command to print the test output and then run your parser to extract test status. \n"
+                    "If your print command is executed correctly but parser still returned empty result, please adjust your parser to make sure it can correctly parse the test output and extract test status of each test case. \n"
+                )
+                return SetupObservation(content=content, is_stop=False)
+        
+            # Parser was executed and produced results
+            content = "Parser validated. Test analysis complete."
+            return SetupObservation(content=content, is_stop=True)
 
     if state["exception"]:
         raise state["exception"]
@@ -485,5 +502,5 @@ If successful, please submit.
         "commands": commands,
         "parser": parser,
         "test_status": test_status,
-        "success": bool((test_command or answer) and parser and test_status),
+        "success": bool(test_command.strip() and parser.strip() and test_status),
     }

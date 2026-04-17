@@ -180,7 +180,7 @@ def auto_catch(func: Callable[..., dict]) -> Callable[..., dict]:
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            return {"exception": Exception(str(e) + "\n\n" + str(traceback.format_exc()))}
+            return {"exception": Exception(str(e) + "\n\n" + str(traceback.format_exc())), "success": False}
 
     return wrapper
 

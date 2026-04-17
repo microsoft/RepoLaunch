@@ -41,7 +41,7 @@ The basic workflow of RepoLaunch agent is as follows:
 
 ### Contributing to RepoLaunch Source Codes
 
-Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
+Please refer to [CONTRIBUTING.md::Contributing to RepoLaunch Source Codes](./CONTRIBUTING.md#contributing-to-repolaunch-source-codes).
 
 ### Use RepoLaunch to Create New Software Engineering Benchmarks
 
@@ -54,13 +54,7 @@ We encourage new research projects to design new kinds of SWE-tasks for LLM benc
 
 ### Improve Agentic Repository Build and Management Task based on RepoLaunch
 
-We encourage integrating more useful tool calls into RepoLaunch. For example, RAG tools to construct and retrieve memory database of repo launch experiences.
-
-We encourage training projects based on the rollout trajectories of RepoLaunch. For example, Rejection Fine-tuning and Reinforcement Learning of open source LMs.
-
- - The agentic workflow is defined in `launch/core/workflow.py`
- - The tool calls of each stage are defined in each stage definition file in `launch/agent/...`
- - The llm calling is defined in `launch/utilities/llm.py`
+Please refer to [CONTRIBUTING.md::Future Directions to Study](./CONTRIBUTING.md#future-directions-to-study).
 
 ## Citations
 

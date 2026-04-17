@@ -1,16 +1,13 @@
 """
 LLM provider abstraction backed by LiteLLM.
 """
-import logging
 import os
 from functools import wraps
 from typing import Any, List
 
 import litellm
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
-from tenacity import before_sleep_log, retry, stop_after_attempt, wait_exponential_jitter
-
-logger = logging.getLogger(__name__)
+from tenacity import retry, stop_after_attempt, wait_exponential_jitter
 
 # Silence LiteLLM provider-debug prints (e.g. repeated "Provider List" lines).
 litellm.suppress_debug_info = True
@@ -82,7 +79,7 @@ def logged_invoke(invoke_func):
 
 class LLMProvider:
     """
-    Unified LLM interface with logging and retry, using ``litellm.completion``.
+    Unified LLM interface with logging and retry, using ``litellm.responses``.
     """
 
     def __init__(self, log_folder: str | None = "./llm_logs", **kwargs):
@@ -91,8 +88,8 @@ class LLMProvider:
 
         Args:
             log_folder (str | None): Directory for interaction logs, None disables logging.
-            **kwargs: Arbitrary LiteLLM completion arguments passed to
-                ``litellm.completion(messages=messages, **kwargs)``.
+            **kwargs: Arbitrary LiteLLM arguments passed to
+                ``litellm.responses(input=messages, **kwargs)``.
         """
         self.log_folder = log_folder
         self.model_config = kwargs
@@ -101,8 +98,7 @@ class LLMProvider:
     @logged_invoke
     @retry(
         stop=stop_after_attempt(8),
-        wait=wait_exponential_jitter(initial=20, max=120, jitter=3),
-        before_sleep=before_sleep_log(logger, logging.ERROR, exc_info=True)
+        wait=wait_exponential_jitter(initial=20, max=120, jitter=3)
     )
     def invoke(self, messages: List[BaseMessage]) -> BaseMessage:
         """
@@ -156,19 +152,29 @@ class LiteLLMModel:
     
     def invoke(self, messages: List[BaseMessage]) -> BaseMessage:
         payload = [self._to_litellm_message(message) for message in messages]
-
-        response = litellm.completion(
-            messages=payload, 
+        from cloudgpt_aoai import get_openai_token_provider
+        token_provider = get_openai_token_provider()
+        response = litellm.responses(
+            input=payload,
+            api_base="https://cloudgpt-openai.azure-api.net/",
+            api_version="2025-04-01-preview",
+            azure_ad_token_provider=token_provider,
             **self.completion_args
         )
 
-        choice = response.choices[0].message
-        content = choice.content if getattr(choice, "content", None) is not None else ""
+        # Extract text from responses API output
+        content = ""
+        for output_item in getattr(response, "output", []):
+            if getattr(output_item, "type", None) == "message":
+                for block in getattr(output_item, "content", []):
+                    if getattr(block, "type", None) == "output_text":
+                        content += block.text
+
         usage = getattr(response, "usage", None)
-        input_tokens = getattr(usage, "prompt_tokens", None)
-        output_tokens = getattr(usage, "completion_tokens", None)
+        input_tokens = getattr(usage, "input_tokens", None)
+        output_tokens = getattr(usage, "output_tokens", None)
         total_tokens = getattr(usage, "total_tokens", None)
-        cost = self._safe_completion_cost(response, model=self.completion_args.get("model"))
+        cost = getattr(usage, "cost", None)
 
         return AIMessage(
             content=content,
@@ -190,7 +196,7 @@ class LiteLLMModel:
 
 if __name__ == "__main__":
     model_config = {
-        "model": "openai/gpt-4o",
+        "model": "azure/gpt-4o",
         "temperature": 0.0,
     }
     llm = LLMProvider(log_folder="./llm_logs", **model_config)

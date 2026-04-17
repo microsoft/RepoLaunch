@@ -2,7 +2,6 @@
 Log parser generation agent for improving test output parsing accuracy.
 """
 import json
-import time
 from typing import Any, Literal
 
 from langchain.schema import HumanMessage, SystemMessage
@@ -68,6 +67,7 @@ class ParseLogAction(BaseModel):
         <analyze>your analysis of current parser issues and improvement opportunities</analyze>
         
     Parse: Generate an improved parser script
+        The input log argument is from the test log from the previous stage. The system automatically passes the test log as the input when you use the <python></python> action and gives you the result of the script.
         <python>def parser(log: str) -> dict[str, str]:
         # Your improved parser implementation
         import re
@@ -75,14 +75,11 @@ class ParseLogAction(BaseModel):
         # ... parsing logic ...
         return results</python>
         
-    Test: Test the improved parser against the current test output
-        <test>reason for testing the parser</test>
-        
     Submit: Submit the final improved parser
         <submit>final parser is ready and tested</submit>
     """
 
-    action: Literal["analyze", "python", "test", "submit"] = Field(
+    action: Literal["analyze", "python", "submit"] = Field(
         "analyze", description="The action type"
     )
     args: Any = Field(None, description="The action arguments")
@@ -106,10 +103,6 @@ class ParseLogActionParser(ActionParser):
         if submit:
             return ParseLogAction(action="submit", args=submit)
 
-        test = self.extract_tag_content(response, "test")
-        if test:
-            return ParseLogAction(action="test", args=test)
-
         script = self.extract_tag_content(response, "python")
         if script:
             return ParseLogAction(action="python", args=script)
@@ -131,7 +124,7 @@ PARSELOG_CONVERSATION_WINDOW = 30
 
 
 @auto_catch
-def generate_log_parser(state: AgentState, max_steps: int = 20, timeout: int = 30) -> dict:
+def generate_log_parser(state: AgentState, max_steps: int = 20) -> dict:
     """
     Agent for generating improved log parsers based on test output analysis.
     
@@ -146,12 +139,12 @@ def generate_log_parser(state: AgentState, max_steps: int = 20, timeout: int = 3
     improved_parser: str = ""
     framework_detected: str = ""
     analysis_result: str = ""
-
+    improved_test_status: dict[str, Literal['pass', 'fail', 'skip']] = {}
     def observation_for_parselog_action(
         state: AgentState, action: ParseLogAction | None
     ) -> ParseLogObservation:
         """Execute parse log action and return observation."""
-        nonlocal improved_parser, framework_detected, analysis_result
+        nonlocal improved_parser, framework_detected, analysis_result, improved_test_status
 
         if not action or not action.action:
             content = f"""Please use the following format to make a valid action choice:\n{ParseLogAction.__doc__}"""
@@ -164,10 +157,7 @@ def generate_log_parser(state: AgentState, max_steps: int = 20, timeout: int = 3
             
         elif action.action == "python":
             improved_parser = action.args
-            content = "Parser script saved. You can now test it and submit after careful validation."
-            return ParseLogObservation(content=content, is_stop=False)
-            
-        elif action.action == "test":
+
             if not improved_parser:
                 content = "No parser script available to test. Please create a parser first."
                 return ParseLogObservation(content=content, is_stop=False)
@@ -175,12 +165,16 @@ def generate_log_parser(state: AgentState, max_steps: int = 20, timeout: int = 3
             # Get test output from previous stage
             test_output = state.get("test_output", "")
             if not test_output:
-                content = "No test output available from previous stage to test against."
-                return ParseLogObservation(content=content, is_stop=False)
+                # This should not happen as we store test_output in state at the beginning of generate_log_parser, but just in case...
+                raise ValueError("No test output available from previous stage to test against.")
                 
             # Test the improved parser
             try:
                 result = run_parser(improved_parser, test_output)
+                if not isinstance(result, dict):
+                    content = f"Your python parser script should return a dict[str, Literal['pass', 'fail', 'skip']]. However, your script returned type {type(result)}. Please adjust your parser script to make sure it returns the correct format."
+                    return ParseLogObservation(content=content, is_stop=False)
+                improved_test_status = result
                 truncated_result = json.dumps(result, indent=2)
                 if len(truncated_result) > 10000:
                     truncated_result = truncated_result[:10000] + "\n...result truncated due to length..."
@@ -210,10 +204,16 @@ Parser executed successfully. Please analyze the results and submit if satisfied
                 
             return ParseLogObservation(content=content, is_stop=False)
             
+        
         elif action.action == "submit":
             if not improved_parser:
-                content = "No improved parser available to submit. Please create a parser first."
+                content = "No improved parser available to submit. Please create a parser with <python></python> action first."
                 return ParseLogObservation(content=content, is_stop=False)
+            
+            if not improved_test_status:
+                content = f"Your last parser did not return any test case: {improved_test_status}. Please adjust your parser to make it able to extract test case names and their statuses from test log with <python></python> action."
+                return ParseLogObservation(content=content, is_stop=False) 
+            
             return ParseLogObservation(content=action.args, is_stop=True)
 
         return ParseLogObservation(content="Unknown action", is_stop=False)
@@ -308,20 +308,20 @@ Parser executed successfully. Please analyze the results and submit if satisfied
 
     logger.info("-" * 10 + "End parse log conversation" + "-" * 10)
     
-    # Test the final improved parser if available
-    final_test_status = {}
-    if improved_parser and test_output:
-        try:
-            final_test_status = run_parser(improved_parser, test_output)
-        except Exception as e:
-            logger.error(f"Error testing final parser: {str(e)}")
+    # Use the final improved parser if success else keep the old test status if the new parser does not return any result
+    if improved_test_status:
+        final_test_status = improved_test_status
+        final_parser = improved_parser
+    else:
+        final_test_status = state.get("test_status", {})
+        final_parser = state.get("parser", "")
     
     return {
         "messages": messages,
-        "parser": improved_parser,
+        "parser": final_parser,
         "framework_detected": framework_detected,
         "analysis_result": analysis_result,
         "test_status": final_test_status,
-        "success": bool(answer and improved_parser),
+        "success": bool(final_test_status and final_parser),
         "test_output": test_output,
     }

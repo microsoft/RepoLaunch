@@ -15,7 +15,7 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/)
 or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
-## Contributing Suggestions
+## Contributing to RepoLaunch Source Codes
 
 1. Welcome issues and PRs related to the bugs and inefficiencies of out agent.
 
@@ -31,4 +31,17 @@ otherwise you could help us build customized ones and upload to dockerhub public
 
 5. To improve the success rate / lower down early submit hallucination (unsuccessful build but submit) in the setup stage; 
 and increase the extraction coverage of per-testcase status and per-testcase command from test log in the organize stage -- any suggestions and improvements to the agent workflow is welcome.
+
+
+## Future Directions to Study
+
+We encourage integrating more useful tool calls into RepoLaunch. For example, RAG tools to construct and retrieve memory database of repo launch experiences.
+
+ - The agentic workflow is defined in `launch/core/workflow.py`
+ - The tool calls of each stage are defined in each stage definition file in `launch/agent/...`
+ - We have implemented the string replace editor tool in `launch/utilities/tools/str_replace_editor.py`. You can add it to the setup agent `launch/agent/setup/setup.py` if you think for your task fixing the repo bugs during build is necessary. We have not added it into the setup agent because in our task to create SWE tasks, the existing bugs at a buggy commit should be kept as it is, so RepoLaunch should not fix any bugs itself.
+
+We encourage training projects based on the rollout trajectories of RepoLaunch. For example, Rejection Fine-tuning and Reinforcement Learning of open source LMs.
+
+ - The llm calling is defined in `launch/utilities/llm.py`
 

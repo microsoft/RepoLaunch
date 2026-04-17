@@ -220,9 +220,7 @@ class SetupRuntime:
         if self.platform == "windows":
             self.send_command(r'''
 function prompt {
-  try { $ec = $global:LASTEXITCODE } catch { $ec = $null }
-  $ok = $ExecutionContext.SessionState.PSVariable.GetValue('?', $true)
-  if ($null -eq $ec) { $ec = if ($ok) { 0 } else { 1 } }
+  if ($?) {$ec=0; $LASTEXITCODE=0} else {if ($LASTEXITCODE -ne 0) {$ec=$LASTEXITCODE} else {$ec=1}}
   $u  = $env:USERNAME
   $h  = $env:COMPUTERNAME
   $wd = (Get-Location).Path
