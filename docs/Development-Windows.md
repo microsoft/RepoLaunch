@@ -73,4 +73,6 @@ d-835_windows&pause=True: Internal Server Error ("re-exec error: exit status 1: 
 (0x3)")
 ```
 
-We currently consider it the bug of windows docker and does not count it into our success rate.
+This has long been a known issue of windows container: https://github.com/microsoft/hcsshim/issues/835. We wish the Windows system team could fix it in the future. Amusingly, the issue has been open for 5 years with no solution...
+
+Thus, we do not count this bug into our success rate.
