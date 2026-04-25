@@ -34,7 +34,7 @@ ANSI_ESCAPE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 TIMEOUT_EXIT_CODE = 124
 
-MEM_LIMIT = "8g"
+MEM_LIMIT = "16g"
 CPU_CORES = 4
 
 
@@ -376,7 +376,9 @@ function prompt {
             return CommandResult(output=output, metadata=metadata)
 
         # handle timeout
-        self._send_bytes(b"\x03")
+        # to kill the task completely, should Ctrl^C for several times
+        for i in range(10):
+            self._send_bytes(b"\x03")
 
         kill_timeout = 5.0
         kill_output, kill_metadata = self._read_raw_output(timeout=kill_timeout)
@@ -725,15 +727,17 @@ if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) {
 }
 ''')
             res: CommandResult = session.send_command(
-                r'git clone {url} "C:\testbed"; cd "C:\testbed"; git reset --hard {base}'.format(
+                r'git config --global --add safe.directory "C:\testbed"; git init "C:\testbed"; cd "C:\testbed"; git remote add origin {url}; git fetch --depth 1 origin {base}; git reset --hard {base}'.format(
                     url=url, base=base_commit
                 )
             )
         else: 
             session.send_command("apt update && apt install -y git")
             res: CommandResult = session.send_command(
-                f"git clone {url} /testbed && cd /testbed && git reset --hard {base_commit}"
+                f"git config --global --add safe.directory /testbed; git init /testbed; cd /testbed; git remote add origin {url}; git fetch --depth 1 origin {base_commit}; git reset --hard {base_commit}"
             )
+        
+        session.send_command("ls")
         
         if int(res.metadata.exit_code) != 0:
             self.cleanup()

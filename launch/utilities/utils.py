@@ -63,7 +63,7 @@ def prepare_repo(instance: dict, repo_root: Path) -> Path:
         instance (dict): The instance containing repository information.
         repo_root (Path): The root directory where the repository will be cloned.
     """
-    url = f'https://github.com/{instance["repo"]}.git'
+    url = f'https://github.com/{instance["repo"]}'
     base_commit = instance["base_commit"]
 
     if repo_root.exists():
@@ -71,7 +71,21 @@ def prepare_repo(instance: dict, repo_root: Path) -> Path:
 
     # Clone repo using subprocess
     subprocess.run(
-        ["git", "clone", url, str(repo_root)],
+        ["git", "init", str(repo_root)],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", url],
+        cwd=str(repo_root),
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    subprocess.run(
+        ["git", "fetch", "--depth", "1", "origin", base_commit],
+        cwd=str(repo_root),
         check=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
