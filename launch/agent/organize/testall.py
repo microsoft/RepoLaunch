@@ -301,7 +301,7 @@ def parse_submission(response: str) -> VerifyAction | None:
     return parser.parse(response)
 
 
-VERIFY_CONVERSATION_WINDOW = 40
+VERIFY_CONVERSATION_WINDOW = 80
 
 
 @auto_catch
@@ -336,7 +336,7 @@ def organize_test_cmd(state: AgentState, max_steps: int) -> dict:
         Returns:
             SetupObservation: Result of action execution
         """
-        nonlocal test_output, test_status, test_command, print_command
+        nonlocal test_output, test_status, test_command, print_command, parser
 
         if not action or not action.action:
             content = f"""Please using following format after `Action: ` to make a valid action choice: \n{VerifyAction.__doc__}"""
@@ -363,7 +363,8 @@ def organize_test_cmd(state: AgentState, max_steps: int) -> dict:
                     "If your print command is executed correctly but parser still returned empty result, please adjust your parser to make sure it can correctly parse the test output and extract test status of each test case. \n"
                 )
                 return SetupObservation(content=content, is_stop=False)
-            # if result is not correct, will not save to test_status
+            # if result is not correct, will not save to parser & test_status
+            parser = action.args
             test_status = json.dumps(result, indent = True)
             truncated_result = test_status
             if len(truncated_result) > 40000:
@@ -464,12 +465,9 @@ If successful, please submit.
         action = parse_verify_action(response.content)
         observation = observation_for_verify_action(state, action)
         if observation.is_stop:
-            answer = observation.content
             break
         if action and action.action == "command":
             commands.append(action.args)
-        if action and action.action == "python":
-            parser = action.args
         message = HumanMessage(f"Observation:\n{observation.content}")
         logger.info("\n" + message.pretty_repr())
         messages.append(message)
