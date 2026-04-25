@@ -4,7 +4,7 @@ LLM provider abstraction backed by LiteLLM.
 import logging
 import os
 from functools import wraps
-from typing import Any, List
+from typing import Any, List, Literal
 
 import litellm
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -122,7 +122,29 @@ class LiteLLMModel:
 
     def __init__(self, **kwargs):
         self.completion_args = kwargs
+        
+        # If your LLM Provider requires user identity login, put it here!
 
+        self.endpoint: Literal["completion", "responses"] = self.pre_flight_check()
+
+    def pre_flight_check(self) -> Literal["completion", "responses"]:
+        messages=[{"role":"user", "content":"hello!"}]
+        try:
+            litellm.completion(
+                messages=messages, 
+                **self.completion_args
+            )
+            return "completion"
+        except:
+            try:
+                litellm.responses(
+                    input=messages, 
+                    **self.completion_args
+                )
+                return "responses"
+            except:
+                raise
+    
     def _to_litellm_message(self, message: BaseMessage) -> dict[str, Any]:
         role = "user"
         name = getattr(message, "name", None)
@@ -147,28 +169,16 @@ class LiteLLMModel:
             if tool_calls:
                 payload["tool_calls"] = tool_calls
         return payload
-
-    def _safe_completion_cost(self, response: Any, model: str | None = None) -> float:
-        try:
-            return float(litellm.completion_cost(completion_response=response, model=model))
-        except Exception:
-            return 0.0
     
-    def invoke(self, messages: List[BaseMessage]) -> BaseMessage:
+    def invoke(self, messages: List[BaseMessage]) -> AIMessage:
         payload = [self._to_litellm_message(message) for message in messages]
 
-        response = litellm.completion(
-            messages=payload, 
-            **self.completion_args
-        )
-
-        choice = response.choices[0].message
-        content = choice.content if getattr(choice, "content", None) is not None else ""
-        usage = getattr(response, "usage", None)
-        input_tokens = getattr(usage, "prompt_tokens", None)
-        output_tokens = getattr(usage, "completion_tokens", None)
-        total_tokens = getattr(usage, "total_tokens", None)
-        cost = self._safe_completion_cost(response, model=self.completion_args.get("model"))
+        if self.endpoint == "completion":
+            content, input_tokens, output_tokens, total_tokens, cost = self.invoke_completion(payload)
+        elif self.endpoint == "responses":
+            content, input_tokens, output_tokens, total_tokens, cost = self.invoke_responses(payload)
+        else:
+            raise ValueError("Endpoint type is unknown!")
 
         return AIMessage(
             content=content,
@@ -178,7 +188,7 @@ class LiteLLMModel:
                 "total_tokens": total_tokens,
             },
             response_metadata={
-                "model": getattr(response, "model", self.completion_args.get("model")),
+                "model": self.completion_args.get("model", "N/A"),
                 "token_usage": {
                     "prompt_tokens": input_tokens,
                     "completion_tokens": output_tokens,
@@ -187,6 +197,44 @@ class LiteLLMModel:
                 "cost": cost,
             },
         )
+    
+    def invoke_completion(self, messages: list[dict[str, Any]]) -> tuple[str, int, int, int, float]:
+        response = litellm.completion(
+            messages=messages, 
+            **self.completion_args
+        )
+
+        choice = response.choices[0].message
+        content = choice.content if getattr(choice, "content", None) is not None else ""
+        usage = getattr(response, "usage", None)
+        input_tokens = getattr(usage, "prompt_tokens", None)
+        output_tokens = getattr(usage, "completion_tokens", None)
+        total_tokens = getattr(usage, "total_tokens", None)
+        cost = response._hidden_params.get("response_cost", 0.0)
+
+        return (content, input_tokens, output_tokens, total_tokens, cost)
+    
+    def invoke_responses(self, messages: list[dict[str, Any]]) -> tuple[str, int, int, int, float]:
+        response = litellm.responses(
+            input=messages,
+            **self.completion_args
+        )
+
+        # Extract text from responses API output
+        content = ""
+        for output_item in getattr(response, "output", []):
+            if getattr(output_item, "type", None) == "message":
+                for block in getattr(output_item, "content", []):
+                    if getattr(block, "type", None) == "output_text":
+                        content += block.text
+
+        usage = getattr(response, "usage", None)
+        input_tokens = getattr(usage, "input_tokens", None)
+        output_tokens = getattr(usage, "output_tokens", None)
+        total_tokens = getattr(usage, "total_tokens", None)
+        cost = response._hidden_params.get("response_cost", 0.0)
+
+        return (content, input_tokens, output_tokens, total_tokens, cost)
 
 if __name__ == "__main__":
     model_config = {

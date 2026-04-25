@@ -20,7 +20,8 @@ We use LiteLLM for max compatibility of LLM API, AND to enable custom API deploy
 export OPENAI_API_KEY=...
 ```
 
-If your llm provider uses user identity login for API usage, go to modify launch/launch/utilities/llm.py.
+We have made `launch/launch/utilities/llm.py` compatible to both traditional completion API and OpenAI responses API. 
+If your llm provider requires user identity login for API usage or requires some weird settings like Gemini thinking signaturue, go to modify `launch/launch/utilities/llm.py`.
 
 Start repo launch process:
 
