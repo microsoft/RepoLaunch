@@ -40,7 +40,8 @@ You need to do it in {steps} steps.
 """
 
 VERIFY_CONVERSATION_WINDOW = 40
-TRUNCATE_LENGTH = 4000
+EXECUTION_TRUNCATE_LENGTH = 30_000
+TESTCASE_TRUNCATE_LENGTH = 4000
 MAX_EXECUTION_TIME = 1800
 
 class VerifyAction(BaseModel):
@@ -158,19 +159,21 @@ def organize_unit_test(state: AgentState, max_steps: int) -> dict:
             generation_result: dict[str, str] = run_get_pertest_cmd(action.args, testcase_list) # full command list
             pertest_command = json.dumps(generation_result) # str format
             trucated_test_commands: dict[str, str] = {} # To be sent into LLM
-            all_len = 0
-            for k, v in generation_result.items():
-                all_len += len(v)
-                if all_len > TRUNCATE_LENGTH:
-                    break
-                trucated_test_commands[k] = v
             session = state["session"]
             start_time = time.time()
             execution_result: dict[str, str] = dict()
-            for testcase in trucated_test_commands.keys():
-                execution_result[testcase] = session.send_command(trucated_test_commands[testcase]).to_observation()
+            all_len = 0
+            for testcase in generation_result.keys():
+                if all_len > EXECUTION_TRUNCATE_LENGTH:
+                    break
                 if time.time() - start_time > MAX_EXECUTION_TIME:
                     break
+                trucated_test_commands[testcase] = generation_result[testcase]
+                execution_result[testcase] = session.send_command(trucated_test_commands[testcase]).to_observation()
+                all_len += len(testcase)
+                all_len += len(trucated_test_commands[testcase])
+                all_len += len(testcase)
+                all_len += len(execution_result[testcase])
             result = f"""
 This is part of the "testcase name :: per-testcase excution command" mapping returned from your python script: 
 {json.dumps(trucated_test_commands, indent = True)}
@@ -211,8 +214,8 @@ If you think it is impossible to run each testcase separately, give up by output
     hints += platform_hints
         
     trucated_test_status = json.dumps(state["test_status"], indent = True)
-    if len(trucated_test_status) > TRUNCATE_LENGTH:
-        trucated_test_status = trucated_test_status[:TRUNCATE_LENGTH] + "... result trucated due to length ..."
+    if len(trucated_test_status) > TESTCASE_TRUNCATE_LENGTH:
+        trucated_test_status = trucated_test_status[:TESTCASE_TRUNCATE_LENGTH] + "... result trucated due to length ..."
     messages = [
         SystemMessage(
             system_msg.format(
