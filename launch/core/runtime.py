@@ -190,8 +190,8 @@ class SetupRuntime(ABC):
     """
 
     container: Container
-    mnt_container: Optional[str] = None
-    mnt_host: Optional[str] = None
+    mnt_container: str
+    mnt_host: str
     container_platform: available_platforms
     # note: container_platform means the enviroment inside the container
     # as windows os can run linux container, on windows computer you can also have container_platform="linux"
@@ -247,6 +247,9 @@ class SetupRuntime(ABC):
             self.send_command(f'chown -R root:root "{dest}"')
 
     def commit(self, image_name: str, tag: str = "latest", push: bool = False) -> str:
+        '''
+        Current implementation means commit to image and remove container.
+        '''
         self.container.stop()
 
         self.container.commit(
@@ -260,7 +263,9 @@ class SetupRuntime(ABC):
             client.images.push(image_name, tag=tag)
             print(f"Image {image_name}:{tag} pushed successfully.")
 
-        self.container.start()
+        #self.container.start()
+        self.cleanup()
+        # currently restart from stopped container is not enabled. you need to launch a new instance from the new image you committed.
         return f"{image_name}:{tag}"
 
     @staticmethod
@@ -400,10 +405,13 @@ class LinuxRuntime(SetupRuntime):
         self.platform = "linux"
         self.command_timeout=command_timeout
         self.working_dir = r"/testbed"
+        self.mnt_host = os.path.join(os.getcwd(), "tmp")
+        self.mnt_container = r"/mnt_tmp"
         self.sock = self.container.attach_socket(
             params={"stdin": 1, "stdout": 1, "stderr": 1, "stream": 1}
         )
         self.output_queue: queue.Queue[bytes] = queue.Queue()
+        self.stopped = False
         self._start_output_thread()
         self._clear_initial_prompt()
         json_str = json.dumps(
@@ -420,7 +428,6 @@ class LinuxRuntime(SetupRuntime):
         self.send_command(
             f'export PROMPT_COMMAND=\'export PS1="{ps1}"\'; export PS2=""'
         )
-        self.stopped = False
 
     def _stream_output(self):
         while True:
@@ -521,6 +528,9 @@ class LinuxRuntime(SetupRuntime):
         '''
         timeout = self.command_timeout * 60 if timeout is None else timeout * 60 # in seconds
 
+        if self.stopped:
+            raise RuntimeError("container is stopped. Currently we have not enabled container restart after docker commit. If you need to restore the container you must launch from the new image you committed.")
+        
         if not command.endswith("\n"):
             command += "\n"
 
@@ -552,9 +562,6 @@ class LinuxRuntime(SetupRuntime):
         return CommandResult(output=output, metadata=fallback_metadata)
 
     def apply_patch(self, patch: str, verbose: bool = False) -> bool:
-        if (not hasattr(self, "mnt_container")) or (self.mnt_container is None) or (not hasattr(self, "mnt_host")) or (self.mnt_host is None):
-            raise RuntimeError(f"apply_patch method is only available for instances from `from_launch_image`")
-
         output_temp = "\n\n<<<<<<PATCH FAILED TO APPLY CLEANLY\n{out}\n>>>>>>\n\n"
 
         filename = f"{uuid.uuid4()}.diff"
@@ -632,7 +639,7 @@ class LinuxRuntime(SetupRuntime):
             extra_hosts=extra_hosts,
             volumes={
                 os.path.join(os.getcwd(), "tmp"): {
-                    "bind": os.path.join(working_dir, "mnt_tmp"),
+                    "bind": "/mnt_tmp",
                     "mode": "rw",
                 }
             },
@@ -643,9 +650,6 @@ class LinuxRuntime(SetupRuntime):
                     container, 
                     command_timeout=command_timeout,
                 )
-        
-        session.mnt_host = os.path.join(os.getcwd(), "tmp")
-        session.mnt_container = r"/testbed/mnt_tmp"
 
         return session
 
@@ -706,6 +710,12 @@ class LinuxRuntime(SetupRuntime):
             },
             working_dir=working_dir,
             extra_hosts=extra_hosts,
+            volumes={
+                os.path.join(os.getcwd(), "tmp"): {
+                    "bind": "/mnt_tmp",
+                    "mode": "rw",
+                }
+            },
             **run_kwargs,
         )
 
@@ -750,10 +760,13 @@ class WindowsRuntime(LinuxRuntime):
         self.platform = "windows"
         self.command_timeout=command_timeout
         self.working_dir = r"C:\testbed"
+        self.mnt_container = r"C:\mnt_tmp"
+        self.mnt_host = os.path.join(os.getcwd(), "tmp")
         self.sock = self.container.attach_socket(
             params={"stdin": 1, "stdout": 1, "stderr": 1, "stream": 1}
         )
         self.output_queue: queue.Queue[bytes] = queue.Queue()
+        self.stopped = False
         self._start_output_thread()
         self._clear_initial_prompt()
         self.send_command(r'''
@@ -782,13 +795,15 @@ function prompt {
   "PS $wd> "
 }
 ''')
-        self.stopped = False
 
     def send_command(self, command: str, timeout: int|None = None) -> CommandResult:
         '''
         timeout: deprecated arg for backward compatibility. In minute. If not specified use self.timeout from object inittialization.
         '''
         timeout = self.command_timeout * 60 if timeout is None else timeout * 60 # in seconds
+
+        if self.stopped:
+            raise RuntimeError("container is stopped. Currently we have not enabled container restart after docker commit. If you need to restore the container you must launch from the new image you committed.")
 
         # Normalize newline semantics for interactive shells
         # For PowerShell, ensure CRLF line endings
@@ -881,7 +896,7 @@ function prompt {
             extra_hosts=extra_hosts,
             volumes={
                 os.path.join(os.getcwd(), "tmp"): {
-                    "bind": os.path.join(working_dir, "mnt_tmp"),
+                    "bind": r"C:\mnt_tmp",
                     "mode": "rw",
                 }
             },
@@ -892,9 +907,6 @@ function prompt {
                     container, 
                     command_timeout=command_timeout,
                 )
-
-        session.mnt_container = os.path.join(working_dir, "mnt_tmp")
-        session.mnt_host = os.path.join(os.getcwd(), "tmp")
 
         return session
 
@@ -957,6 +969,12 @@ function prompt {
             },
             working_dir=working_dir,
             extra_hosts=extra_hosts,
+            volumes={
+                os.path.join(os.getcwd(), "tmp"): {
+                    "bind": r"C:\mnt_tmp",
+                    "mode": "rw",
+                }
+            },
             **run_kwargs,
         )
 
@@ -1056,7 +1074,6 @@ class AndroidRuntime(LinuxRuntime):
         container_id: str,
         docker_timeout: int,
         command_timeout: int,
-        mount_tmp: bool,
     ) -> SetupRuntime:
         try:
             docker.from_env().ping()
@@ -1077,14 +1094,6 @@ class AndroidRuntime(LinuxRuntime):
             "mem_limit": MEM_LIMIT,
             "user": "root",
         }
-        volumes = None
-        if mount_tmp:
-            volumes = {
-                os.path.join(os.getcwd(), "tmp"): {
-                    "bind": os.path.join(working_dir, "mnt_tmp"),
-                    "mode": "rw",
-                }
-            }
 
         container = client.containers.run(
             image_name,
@@ -1098,7 +1107,12 @@ class AndroidRuntime(LinuxRuntime):
             },
             working_dir=working_dir,
             extra_hosts=extra_hosts,
-            volumes=volumes,
+            volumes={
+                os.path.join(os.getcwd(), "tmp"): {
+                    "bind": "/mnt_tmp",
+                    "mode": "rw",
+                }
+            },
             **run_kwargs,
         )
 
@@ -1106,10 +1120,6 @@ class AndroidRuntime(LinuxRuntime):
                     container,
                     command_timeout=command_timeout,
                 )
-
-        if mount_tmp:
-            session.mnt_host = os.path.join(os.getcwd(), "tmp")
-            session.mnt_container = os.path.join(working_dir, "mnt_tmp")
 
         return session
 
@@ -1126,7 +1136,6 @@ class AndroidRuntime(LinuxRuntime):
             container_id=container_id,
             docker_timeout=7200,
             command_timeout=command_timeout,
-            mount_tmp=True,
         )
 
     @classmethod
@@ -1142,7 +1151,6 @@ class AndroidRuntime(LinuxRuntime):
             container_id=container_id,
             docker_timeout=18000,
             command_timeout=command_timeout,
-            mount_tmp=False,
         )
 
         url = f'https://github.com/{instance["repo"]}.git'

@@ -39,6 +39,7 @@ index 0000000..7a754f4
 -> session.cleanup()
 '''
 
+import os
 import platform as host_platform
 
 import docker
@@ -47,7 +48,9 @@ from docker.errors import APIError, DockerException, ImageNotFound
 
 from launch.core.runtime import (
     AndroidRuntime,
+    LinuxRuntime,
     SetupRuntime,
+    WindowsRuntime,
 )
 
 
@@ -57,6 +60,98 @@ INSTANCE = {
     "base_commit": "a774c52fc09371456846be9610680481bd37dc7a",
 }
 PATCH_CONTENT = """diff --git a/log.out b/log.out\nnew file mode 100644\nindex 0000000..7a754f4\n--- /dev/null\n+++ b/log.out\n@@ -0,0 +1,2 @@\n+1\n+2\n\\ No newline at end of file"""
+
+
+class FakeSocket:
+    pass
+
+
+class FakeContainer:
+    def __init__(self, sock: FakeSocket):
+        self.sock = sock
+
+    def attach_socket(self, params):
+        return self.sock
+
+    def stop(self):
+        pass
+
+    def remove(self, force=False):
+        pass
+
+
+def no_command_result(self, command, timeout=None):
+    return None
+
+
+@pytest.fixture
+def patch_runtime_constructor_io(monkeypatch):
+    monkeypatch.setattr(LinuxRuntime, "_start_output_thread", lambda self: None)
+    monkeypatch.setattr(LinuxRuntime, "_clear_initial_prompt", lambda self: None)
+    monkeypatch.setattr(LinuxRuntime, "send_command", no_command_result)
+    monkeypatch.setattr(WindowsRuntime, "send_command", no_command_result)
+
+
+@pytest.mark.parametrize(
+    ("runtime_cls", "expected_attrs"),
+    [
+        pytest.param(
+            LinuxRuntime,
+            {
+                "platform": "linux",
+                "working_dir": r"/testbed",
+                "mnt_container": r"/mnt_tmp",
+            },
+            id="linux",
+        ),
+        pytest.param(
+            WindowsRuntime,
+            {
+                "platform": "windows",
+                "working_dir": r"C:\testbed",
+                "mnt_container": r"C:\mnt_tmp",
+            },
+            id="windows",
+        ),
+        pytest.param(
+            AndroidRuntime,
+            {
+                "platform": "android",
+                "working_dir": r"/testbed",
+                "mnt_container": r"/mnt_tmp",
+            },
+            id="android",
+        ),
+    ],
+)
+def test_runtime_constructor_attributes(runtime_cls, expected_attrs, patch_runtime_constructor_io):
+    command_timeout = 17
+    sock = FakeSocket()
+    runtime = runtime_cls(FakeContainer(sock), command_timeout=command_timeout)
+
+    try:
+        assert isinstance(runtime.platform, str)
+        assert runtime.platform == expected_attrs["platform"]
+
+        assert isinstance(runtime.command_timeout, int)
+        assert runtime.command_timeout == command_timeout
+
+        assert isinstance(runtime.working_dir, str)
+        assert runtime.working_dir == expected_attrs["working_dir"]
+
+        assert isinstance(runtime.mnt_host, str)
+        assert runtime.mnt_host == os.path.join(os.getcwd(), "tmp")
+
+        assert isinstance(runtime.mnt_container, str)
+        assert runtime.mnt_container == expected_attrs["mnt_container"]
+
+        assert isinstance(runtime.sock, FakeSocket)
+        assert runtime.sock is sock
+
+        assert isinstance(runtime.stopped, bool)
+        assert runtime.stopped is False
+    finally:
+        runtime.stopped = True
 
 
 
@@ -123,12 +218,13 @@ def test_runtime_integration_workflow(runtime_platform, base_image):
             platform=runtime_platform,
         )
         assert_readme_visible(base_session)
-        committed_image = base_session.commit(image_name=image_repo, tag=image_tag)
-        assert committed_image == launch_image
 
         assert base_session.apply_patch(PATCH_CONTENT, verbose=True) is True
         rm_res = base_session.send_command("rm log.out")
         assert rm_res.metadata.exit_code == 0, rm_res.output
+
+        committed_image = base_session.commit(image_name=image_repo, tag=image_tag)
+        assert committed_image == launch_image
 
     finally:
         if base_session is not None:
