@@ -24,7 +24,7 @@ from rich.progress import (
 
 from launch.core.entry import setup, organize
 from launch.utilities.config import Config, load_config
-from launch.utilities.utils import prepare_workspace, safe_read_result
+from launch.utilities.workspace import prepare_workspace, safe_read_result
 from launch.scripts import collect
 
 lock = threading.Lock()

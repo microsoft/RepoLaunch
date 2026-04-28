@@ -4,7 +4,7 @@ Core launch functionality for setting up and executing repository environments.
 import pprint
 
 from launch.agent.state import AgentState
-from launch.utilities.utils import WorkSpace
+from launch.utilities.workspace import WorkSpace
 from launch.core.workflow import define_setup_workflow, define_organize_workflow
 
 

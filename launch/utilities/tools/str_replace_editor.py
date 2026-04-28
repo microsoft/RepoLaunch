@@ -164,7 +164,7 @@ require (
             return False
     
     def _is_file(self, container_path: str) -> bool:
-        test_file = f"[ -f {container_path} ]" if self.container.platform == "linux" else f"if (!(Test-Path '{container_path}' -PathType Leaf)) {{throw}}"
+        test_file = f"[ -f {container_path} ]" if self.container.platform in ("linux", "android", "macos") else f"if (!(Test-Path '{container_path}' -PathType Leaf)) {{throw}}"
         res = self.container.send_command(test_file)
         if res.metadata.exit_code == 0:
             return True
@@ -256,6 +256,8 @@ require (
             return None
         if self.container.platform == "windows":
             cmd = f'(Get-Item "{path}").LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss.ff")'
+        elif self.container.platform == "macos":
+            cmd = f"stat -f %m {path}"
         else:
             cmd = f"stat -c %Y {path}"
         res = self.container.send_command(cmd)
@@ -285,4 +287,3 @@ require (
                 except ValueError:
                     continue
         return None
-
