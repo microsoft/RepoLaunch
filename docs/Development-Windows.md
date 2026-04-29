@@ -1,5 +1,7 @@
 # Development on Windows
 
+This doc is about running RepoLaunch on Windows container to build and test repo in Windows environment.
+
 ## Machine Requirements
 
 OS version: Windows Pro or Enterprise 10 / 11. Simple Windows Personal / Family / Home version does not support docker at all!

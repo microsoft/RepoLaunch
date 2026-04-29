@@ -1,6 +1,6 @@
 '''
 # test the the combinations of
-# 4 platforms: linux, windows, android, macos and
+# 4 platforms: linux, windows, android and
 # 9 languages: Python, C++, C, C#, Go, Rust, Java, JavaScript, TypeScript
 
 # Your task is to test any combination all has the `correct output type` for methods:
@@ -23,7 +23,12 @@ LANGUAGES = [
     "JavaScript",
     "TypeScript",
 ]
-PLATFORMS = ["linux", "windows", "android", "macos"]
+PLATFORMS = [
+    "linux", 
+    "windows", 
+    "android", 
+    #"macos"
+]
 
 
 class DummySession:

@@ -6,10 +6,12 @@ Paper: [RepoLaunch: Automating Build&Test Pipeline of Code Repositories on ANY L
 
 RepoLaunch now supports 
 - All mainstram languages : C, C++, C#, Python, Java, Node.js (JS & TS), Go, Rust.
-- Building on linux-arch & windows-arch docker images.
+- Building on linux images, android images, windows images.
 
 
 ## Notifications
+
+**[29/Apr/2026]** Add Android platform support. The Android images are built from Linux arch images, which can run on Linux docker and Docker Desktop.
 
 **[28/Mar/2026]**
 

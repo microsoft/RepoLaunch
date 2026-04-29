@@ -46,12 +46,7 @@ class SetupRuntime:
                 command_timeout
             )
         elif platform == "macos":
-            from launch.core.platforms.macos import MacosRuntime
-            return MacosRuntime.start_runtime_from_launch_image(
-                image_name,
-                instance_id,
-                command_timeout
-            )
+            raise NotImplementedError("start MacOS container and boost into cli is still not supported.")
         else:
             raise ValueError(f"Container Platform {platform} unknown.")
         
@@ -84,11 +79,6 @@ class SetupRuntime:
                 command_timeout
             )
         elif platform == "macos":
-            from launch.core.platforms.macos import MacosRuntime
-            return MacosRuntime.start_runtime_from_base_image(
-                image_name,
-                instance,
-                command_timeout
-            )
+            raise NotImplementedError("start MacOS container and boost into cli is still not supported.")
         else:
             raise ValueError(f"Container Platform {platform} unknown.")

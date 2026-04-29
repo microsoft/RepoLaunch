@@ -28,10 +28,6 @@ class LanguageHandler(ABC):
                 "cimg/android:2026.03.1-browsers": "Android SDK and CLI tools, Java, Gradle, Maven, Git, AND Node.js, google-chrome installed",
                 "cimg/android:2026.03.1-ndk": "Android SDK image with Android Native Development Kit installed",
             }
-        elif platform == "macos":
-            return {
-                "sickcodes/docker-osx:auto": "a pre-installed macOS Catalina Virtual Machine provided by Docker-OSX",
-            }
         else:
             raise ValueError(f"platform {platform} unknown or unimplemented...")
     
@@ -65,22 +61,6 @@ class LanguageHandler(ABC):
         if base_image not in descriptions:
             raise ValueError(f"Unknown base image {base_image}")
         return f"You are in an Android development environment with {descriptions[base_image]}.\n\n"
-
-    @staticmethod
-    def get_macos_prompt(base_image: str) -> str:
-        descriptions = {
-            "sickcodes/docker-osx:auto": "a pre-installed macOS Catalina Virtual Machine provided by Docker-OSX",
-        }
-        if base_image not in descriptions:
-            raise ValueError(f"Unknown base image {base_image}")
-        return f"""
-You are in a macOS development environment with {descriptions[base_image]}.
-- The repository lives under `/Users/user/testbed`.
-- Use macOS commands and BSD userland behavior, not Linux-only `apt`/GNU assumptions.
-- Prefer Homebrew or native macOS installers when dependencies are missing.
-- The swap folder `/Volumes/repolaunch_swap` is temporary and should only be used for file transfer.
-
-"""
 
 
 class PythonHandler(LanguageHandler):
@@ -123,8 +103,6 @@ class PythonHandler(LanguageHandler):
 
         if platform == "android":
             prompt = self.get_android_prompt(base_image) + prompt
-        elif platform == "macos":
-            prompt = self.get_macos_prompt(base_image) + prompt
 
         return prompt
     
@@ -207,8 +185,6 @@ npm install corepack@latest; corepack enable; corepack prepare pnpm@latest --act
             
         if platform == "android":
             prompt = self.get_android_prompt(base_image) + prompt
-        elif platform == "macos":
-            prompt = self.get_macos_prompt(base_image) + prompt
 
         return prompt
     
@@ -275,8 +251,6 @@ class RustHandler(LanguageHandler):
 """
         if platform == "android":
             prompt = self.get_android_prompt(base_image) + prompt
-        elif platform == "macos":
-            prompt = self.get_macos_prompt(base_image) + prompt
         return prompt
     
     def cleanup_environment(self, session: BaseRuntime, server: Optional[Any] = None):
@@ -334,8 +308,6 @@ class JavaHandler(LanguageHandler):
 """
         if platform == "android":
             prompt = self.get_android_prompt(base_image) + prompt
-        elif platform == "macos":
-            prompt = self.get_macos_prompt(base_image) + prompt
 
         return prompt
     
@@ -401,8 +373,6 @@ class GoHandler(LanguageHandler):
 """
         if platform == "android":
             prompt = self.get_android_prompt(base_image) + prompt
-        elif platform == "macos":
-            prompt = self.get_macos_prompt(base_image) + prompt
         return prompt
     
     def cleanup_environment(self, session: BaseRuntime, server: Optional[Any] = None):
@@ -464,8 +434,6 @@ class CSharpHandler(LanguageHandler):
 """
         if platform == "android":
             prompt = self.get_android_prompt(base_image) + prompt
-        elif platform == "macos":
-            prompt = self.get_macos_prompt(base_image) + prompt
         return prompt
     
     def cleanup_environment(self, session: BaseRuntime, server: Optional[Any] = None):
@@ -638,8 +606,6 @@ Examples to build a repo:
 """
         if platform == "android":
             prompt = self.get_android_prompt(base_image) + prompt
-        elif platform == "macos":
-            prompt = self.get_macos_prompt(base_image) + prompt
         return prompt
     
     def cleanup_environment(self, session: BaseRuntime, server: Optional[Any] = None):

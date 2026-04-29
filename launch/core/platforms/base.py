@@ -35,7 +35,7 @@ VAR_PATTERNS = {
     'py_interpreter_path': re.compile(r'"py_interpreter_path":\s*"([^"]*)"'),
 }
 
-available_platforms = Literal["linux", "windows", "android", "macos"]
+available_platforms = Literal["linux", "windows", "android"]
 
 @dataclass
 class CmdOutputMetadata:

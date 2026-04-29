@@ -1,10 +1,17 @@
 # RepoLaunch Agent Tutorial
 
-## Run RepoLaunch
+## Dependencies
+
+Pre-install: Git, Python>=3.12, Docker
+
+Now RepoLaunch supports Linux, Windows and Android build. Android images are built from Linux images, so the settings are the same as Linux. Linux images and Android images can run on linux docker and Docker Desktop (windows/macos). 
+For helpers to run RepoLaunch on Windows container, see [Development-Windows.md](./Development-Windows.md)
 
 ```shell
 pip install -e .
 ```
+
+## Run RepoLaunch
 
 We provide an example input file `data/examples/dataset.jsonl` and a run config `data/examples/config.json` in [examples](../data/examples) to help you quickly go through the launch process.
 
@@ -29,9 +36,6 @@ Start repo launch process:
 launch data/examples/config.json
 # equivalently: python -m launch.run --config-path data/examples/config.json
 ```
-
-For helpers to run RepoLaunch on Windows, see [Development-Windows.md](./Development-Windows.md)
-
 
 ## Input
 
@@ -62,11 +66,11 @@ RepoLaunch is a two step process, the first step is to setup the repo, installin
 | `first_N_repos`    | integer |  Limit processing to first N repos (-1 for all repos)                       |
 | `max_workers`      | integer |  Number of parallel workers for processing                                   |
 | `overwrite`        | boolean |  Whether to overwrite existing results (false will skip existing repos)     |
-| `os`               | str     |  which docker image os architecture to build on (default linux, can choose windows)   |
+| `os`               | str     |  Which docker image os architecture to build on. Default to `linux` -- use linux containers on linux machines or wsl. Can also choose: `windows` -- use windows containers on windows host; `android` -- use android containers which are built from linux containers on linux machines or wsl.   |
 | `max_trials`       | integer |   how many rounds of setup-verify loop agent can attempt, default 1   |
 | `max_steps_setup`  | integer |   how many steps agent can attemp to setup the environment, default 20   |
 | `max_steps_verify` | integer |   how many steps agent can attemp to verify the setup, default 20   |
-| `cmd_timeout`      | integer |   time limit in minute of llm's each shell command, default 30 min. Suggested: 60 for Linux and 90 for Windows.   |
+| `cmd_timeout`      | integer |   time limit in minute of llm's each shell command, default 30 min. Suggested: 80 for Linux and 120 for Windows.   |
 | `image_prefix`     | string  | prefix of the output_image in the format {namespace}/{dockerhub_repo}, defaults to repolaunch/dev |
 
 
