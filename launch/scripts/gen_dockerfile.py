@@ -58,7 +58,7 @@ def _render_linux_layer(commands: list[str], comment: str) -> list[str]:
     return out
 
 
-def gen_linux_dockerfile(layers: dict[str, Any]) -> str:
+def gen_linux_dockerfile(layers: LayerInfo) -> str:
     base_image: str = layers["base_image"]
     setup_cmds: list[str] = list(layers.get("setup_layer") or [])
     organize_cmds: list[str] = list(layers.get("organize_layer") or [])
@@ -102,7 +102,7 @@ def _render_windows_layer(commands: list[str], comment: str) -> list[str]:
     return out
 
 
-def gen_windows_dockerfile(layers: dict[str, Any]) -> str:
+def gen_windows_dockerfile(layers: LayerInfo) -> str:
     base_image: str = layers["base_image"]
     setup_cmds: list[str] = list(layers.get("setup_layer") or [])
     organize_cmds: list[str] = list(layers.get("organize_layer") or [])
