@@ -8,7 +8,7 @@ import time
 import traceback
 from functools import wraps
 from logging import Logger
-from typing import Annotated, Callable, List, Union
+from typing import Annotated, Any, Callable, List, Union
 
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.messages import (
@@ -39,7 +39,7 @@ class AgentState(State):
     Contains all necessary information, tools, and state tracking for processing
     a SWE-bench instance through environment setup and verification stages.
     """
-    instance: dict
+    instance: dict[str, Any]
     llm: LLMProvider
     language: LANGUAGE
     logger: Logger
@@ -51,6 +51,7 @@ class AgentState(State):
         List[Union[HumanMessage, AIMessage, SystemMessage, ToolMessage]], add_messages
     ]
     verify_messages: List[Union[HumanMessage, AIMessage, SystemMessage]]
+    preparation_commands: Annotated[List[str], operator.add]
     setup_commands: Annotated[List[str], operator.add]
     test_commands: List[str]
     print_commands: List[str]

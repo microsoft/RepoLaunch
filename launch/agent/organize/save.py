@@ -88,11 +88,23 @@ def save_organize_result(state: AgentState) -> dict:
     else:
         history = {}
     
+    if history.get("docker_image_layers", {}):
+        previous_layers = history["docker_image_layers"]
+    elif state["instance"].get("docker_image_layers", {}):
+        previous_layers = state["instance"]["docker_image_layers"]
+    else:
+        previous_layers = {"base_image": state["instance"].get("docker_image", None)}
+    docker_image_layers = {
+        **previous_layers,
+        "organize_layer": state["commands"]
+    }
+
     result = json.dumps(
             {
                 **history,
                 "instance_id": instance_id,
                 "docker_image": state.get("docker_image", state["instance"].get("docker_image", "")),
+                "docker_image_layers": docker_image_layers,
                 "rebuild_commands": state.get("setup_commands", []),
                 "test_commands": state.get("test_commands", []),
                 "test_status": state.get("test_status", {}),

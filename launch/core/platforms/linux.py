@@ -66,6 +66,7 @@ class LinuxRuntime(BaseRuntime):
         self.send_command(
             f'export PROMPT_COMMAND=\'export PS1="{ps1}"\'; export PS2=""'
         )
+        self.preparation_commands = []
 
     def _stream_output(self):
         while True:
@@ -219,42 +220,27 @@ class LinuxRuntime(BaseRuntime):
                 print(output_temp.format(out=res.output), flush=True)
             return False
     
-
     @classmethod
-    def start_runtime_from_launch_image(
+    def _start_container(
         cls,
         image_name: str,
-        instance_id: str,
-        command_timeout: int = 30,
+        container_id: str,
+        docker_timeout: int,
+        command_timeout: int,
     ) -> LinuxRuntime:
-        """
-        Start a Docker container session for repository testing.
-        
-        Args:
-            image_name (str): Base Docker image name
-            instance (dict): SWE-bench instance data with repo info
-            platform: the platform of the container, linux or windows
-            
-        Returns:
-            SetupRuntime: Configured runtime session ready for command execution
-            
-        Raises:
-            RuntimeError: If Docker is not available
-        """
         try:
             docker.from_env().ping()
         except docker.errors.DockerException:
             raise RuntimeError("Docker is not installed or not running.")
 
         _ = cls.pull_image(image_name)
-        client = docker.from_env(timeout=7200) # commit added layers should finish in 2 hours
-        container_id = instance_id.replace("/", "_")
+        client = docker.from_env(timeout=docker_timeout) # commit added layers should finish in 2 hours
         container_name = f"git-launch-{container_id}-{str(uuid.uuid4())[:4]}"
         info = client.version()
         engine_os = (info.get("Os") or info.get("OSType") or "").lower() 
         # which operating system this code is running on, note windows can run linux containers, so engine_os != (container) platform
         extra_hosts = {"host.docker.internal": "host-gateway"} if "linux" in engine_os else None
-        
+
         os.makedirs(os.path.join(os.getcwd(), "tmp"), exist_ok=True)
         shell_command = "/bin/bash"
         working_dir = "/testbed"
@@ -292,6 +278,36 @@ class LinuxRuntime(BaseRuntime):
         return session
 
     @classmethod
+    def start_runtime_from_launch_image(
+        cls,
+        image_name: str,
+        instance_id: str,
+        command_timeout: int = 30,
+    ) -> LinuxRuntime:
+        """
+        Start a Docker container session for repository testing.
+        
+        Args:
+            image_name (str): Base Docker image name
+            instance (dict): SWE-bench instance data with repo info
+            platform: the platform of the container, linux or windows
+            
+        Returns:
+            SetupRuntime: Configured runtime session ready for command execution
+            
+        Raises:
+            RuntimeError: If Docker is not available
+        """
+        container_id = instance_id.replace("/", "_")
+        session = cls._start_container(
+            image_name,
+            container_id,
+            7200, # commit added layers should finish in 2 hours
+            command_timeout
+        )
+        return session
+
+    @classmethod
     def start_runtime_from_base_image(
         cls,
         image_name: str,
@@ -312,55 +328,15 @@ class LinuxRuntime(BaseRuntime):
         Raises:
             RuntimeError: If Docker is not available
         """
-        try:
-            docker.from_env().ping()
-        except docker.errors.DockerException:
-            raise RuntimeError("Docker is not installed or not running.")
 
-        _ = cls.pull_image(image_name)
-        client = docker.from_env(timeout=18000) 
-        # commit a new image built from scratch should require many many hours
         # todo: make docker commit a separate thread / process, make it async to accelerate
         container_id = instance["instance_id"].replace("/", "_")
-        container_name = f"git-launch-{container_id}-{str(uuid.uuid4())[:4]}"
-        info = client.version()
-        engine_os = (info.get("Os") or info.get("OSType") or "").lower() 
-        # which operating system this code is running on, note windows can run linux containers, so engine_os != (container) platform
-        extra_hosts = {"host.docker.internal": "host-gateway"} if "linux" in engine_os else None
-        
-        os.makedirs(os.path.join(os.getcwd(), "tmp"), exist_ok=True)
-        shell_command = "/bin/bash"
-        working_dir = "/testbed"
-        run_kwargs = {
-            "cpu_quota": int(CPU_CORES * 100000),
-            "mem_limit": MEM_LIMIT,
-        }
-
-        container = client.containers.run(
+        session = cls._start_container(
             image_name,
-            name=container_name,
-            command=shell_command,
-            stdin_open=True,
-            tty=True,
-            detach=True,
-            environment={
-                "TERM": "xterm-mono",
-            },
-            working_dir=working_dir,
-            extra_hosts=extra_hosts,
-            volumes={
-                os.path.join(os.getcwd(), "tmp"): {
-                    "bind": "/mnt_tmp",
-                    "mode": "rw",
-                }
-            },
-            **run_kwargs,
+            container_id,
+            18000,  # commit setup layers usually take very long time, give 5h timeout here
+            command_timeout,
         )
-
-        session = cls(
-                    container, 
-                    command_timeout=command_timeout,
-                )
 
         # We avoid copying due to performance issues
         # session.copy_dir_to_container(str(workspace), "/workspace")
@@ -368,11 +344,11 @@ class LinuxRuntime(BaseRuntime):
         url = f'https://github.com/{instance["repo"]}.git'
         base_commit = instance["base_commit"]
 
-        session.send_command("apt update && apt install -y git")
-        res: CommandResult = session.send_command(
-            f"git config --global --add safe.directory /testbed; git init /testbed; cd /testbed; git remote add origin {url}; git fetch --depth 1 origin {base_commit}; git reset --hard {base_commit}"
-        )
-        
+        git_install_cmd = "apt update && apt install -y git"
+        repo_clone_cmd = f"git config --global --add safe.directory /testbed; git init /testbed; cd /testbed; git remote add origin {url}; git fetch --depth 1 origin {base_commit}; git reset --hard {base_commit}"
+        session.preparation_commands.extend([git_install_cmd, repo_clone_cmd])
+        session.send_command(git_install_cmd)
+        res: CommandResult = session.send_command(repo_clone_cmd)
         session.send_command("ls")
         
         if int(res.metadata.exit_code) != 0:

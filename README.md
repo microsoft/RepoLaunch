@@ -30,12 +30,11 @@ RepoLaunch now still uses traditional Thought-Action format for agent actions, b
 To use RepoLaunch Agent to launch your repository, please refer to [Development.md](./docs/Development.md)
 
 RepoLaunch can:
-1) Install all dependencies and build the repository, delivered as a docker image;
-2) Organize the command to rebuild the repository inside the container after modifications;
-3) Organize command to test the repository, write a parser to parse test output into testcase-status mapping, and optionally find per-testcase running command.
+1) Install all dependencies and build the repository, delivered as a docker image, with docker image layer info collected for Dockerfile reconstruction;
+2) Organize the command to rebuild the repository inside a container after repo modifications;
+3) Organize command to test the repository, write a parser to parse test output into structured testcase-status mapping, and optionally find per-testcase running command.
 
 The basic workflow of RepoLaunch agent is as follows:
-
 
 ![RepoLaunch Workflow](docs/assets/1.png)
 
@@ -50,7 +49,6 @@ Please refer to [CONTRIBUTING.md::Contributing to RepoLaunch Source Codes](./CON
 So far the major contribution of RepoLaunch is to create tasks for [SWE-bench-Live](https://github.com/microsoft/SWE-bench-Live), where the creation of SWE-tasks is based purely on scraping GitHub issues and PRs. Now SWE-bench-Live datasets have been used for benchmarking of LLMs and coding agents, and training (SFT/RL) of coding LLMs. 
 
 We encourage new research projects to design new kinds of SWE-tasks for LLM benchmarking and training, with task creation automated by RepoLaunch.
-
 
 ![RepoLaunch automated SWE dataset creation](docs/assets/2.png)
 

@@ -318,6 +318,7 @@ def organize_setup(state: AgentState, max_steps: int) -> dict:
         if observation.is_stop:
             # Agent submitted commands, now automatically verify them
             submitted_commands = observation.content
+            commands.append(submitted_commands)
             logger.info(f"Agent submitted commands: {submitted_commands}")
             logger.info("Automatically verifying submitted commands...")
             
