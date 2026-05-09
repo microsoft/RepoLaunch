@@ -62,8 +62,9 @@ class AndroidRuntime(LinuxRuntime):
         engine_os = (info.get("Os") or info.get("OSType") or "").lower()
         extra_hosts = {"host.docker.internal": "host-gateway"} if "linux" in engine_os else None
 
-        working_dir = "/testbed"
         os.makedirs(os.path.join(os.getcwd(), "tmp"), exist_ok=True)
+        shell_command = "/bin/bash"
+        working_dir = "/testbed"
         run_kwargs = {
             "cpu_quota": int(CPU_CORES * 100000),
             "mem_limit": MEM_LIMIT,
@@ -73,7 +74,7 @@ class AndroidRuntime(LinuxRuntime):
         container = client.containers.run(
             image_name,
             name=container_name,
-            command="/bin/bash",
+            command=shell_command,
             stdin_open=True,
             tty=True,
             detach=True,
@@ -131,11 +132,11 @@ class AndroidRuntime(LinuxRuntime):
         url = f'https://github.com/{instance["repo"]}.git'
         base_commit = instance["base_commit"]
 
-        session.send_command("command -v git >/dev/null || (apt-get update && apt-get install -y git)")
-        res: CommandResult = session.send_command(
-            f"git config --global --add safe.directory /testbed; git init /testbed; cd /testbed; git remote add origin {url}; git fetch --depth 1 origin {base_commit}; git reset --hard {base_commit}"
-        )
-
+        git_install_cmd = "command -v git >/dev/null || (apt-get update && apt-get install -y git)"
+        repo_clone_cmd = f"git config --global --add safe.directory /testbed; git init /testbed; cd /testbed; git remote add origin {url}; git fetch --depth 1 origin {base_commit}; git reset --hard {base_commit}"
+        session.preparation_commands.extend([git_install_cmd, repo_clone_cmd])
+        session.send_command(git_install_cmd)
+        res: CommandResult = session.send_command(repo_clone_cmd)
         session.send_command("ls")
 
         if int(res.metadata.exit_code) != 0:

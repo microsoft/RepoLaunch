@@ -77,6 +77,7 @@ function prompt {
   "PS $wd> "
 }
 ''')
+        self.preparation_commands = []
 
     def send_command(self, command: str, timeout: int|None = None) -> CommandResult:
         '''
@@ -119,37 +120,22 @@ function prompt {
         )
 
         return CommandResult(output=output, metadata=fallback_metadata)
-    
 
     @classmethod
-    def start_runtime_from_launch_image(
+    def _start_container(
         cls,
         image_name: str,
-        instance_id: str,
-        command_timeout: int = 30,
+        container_id: str,
+        docker_timeout: int,
+        command_timeout: int,
     ) -> WindowsRuntime:
-        """
-        Start a Docker container session for repository testing.
-        
-        Args:
-            image_name (str): Base Docker image name
-            instance (dict): SWE-bench instance data with repo info
-            platform: the platform of the container, linux or windows
-            
-        Returns:
-            SetupRuntime: Configured runtime session ready for command execution
-            
-        Raises:
-            RuntimeError: If Docker is not available
-        """
         try:
             docker.from_env().ping()
         except docker.errors.DockerException:
             raise RuntimeError("Docker is not installed or not running.")
 
         _ = cls.pull_image(image_name)
-        client = docker.from_env(timeout=7200) # commit added layers should finish in 2 hours
-        container_id = instance_id.replace("/", "_")
+        client = docker.from_env(timeout=docker_timeout) # commit added layers should finish in 2 hours
         container_name = f"git-launch-{container_id}-{str(uuid.uuid4())[:4]}"
         info = client.version()
         engine_os = (info.get("Os") or info.get("OSType") or "").lower() 
@@ -192,6 +178,36 @@ function prompt {
 
         return session
 
+    @classmethod
+    def start_runtime_from_launch_image(
+        cls,
+        image_name: str,
+        instance_id: str,
+        command_timeout: int = 30,
+    ) -> WindowsRuntime:
+        """
+        Start a Docker container session for repository testing.
+        
+        Args:
+            image_name (str): Base Docker image name
+            instance (dict): SWE-bench instance data with repo info
+            platform: the platform of the container, linux or windows
+            
+        Returns:
+            SetupRuntime: Configured runtime session ready for command execution
+            
+        Raises:
+            RuntimeError: If Docker is not available
+        """
+        container_id = instance_id.replace("/", "_")
+        session = cls._start_container(
+            image_name,
+            container_id,
+            7200,
+            command_timeout
+        )
+        return session
+
 
 
     @classmethod
@@ -215,67 +231,23 @@ function prompt {
         Raises:
             RuntimeError: If Docker is not available
         """
-        try:
-            docker.from_env().ping()
-        except docker.errors.DockerException:
-            raise RuntimeError("Docker is not installed or not running.")
 
-        _ = cls.pull_image(image_name)
-        client = docker.from_env(timeout=18000) 
         # commit a new image built from scratch should require many many hours
         # todo: make docker commit a separate thread / process, make it async to accelerate
         container_id = instance["instance_id"].replace("/", "_")
-        container_name = f"git-launch-{container_id}-{str(uuid.uuid4())[:4]}"
-        info = client.version()
-        engine_os = (info.get("Os") or info.get("OSType") or "").lower() 
-        # which operating system this code is running on, note windows can run linux containers, so engine_os != (container) platform
-        extra_hosts = {"host.docker.internal": "host-gateway"} if "linux" in engine_os else None
-        
-        os.makedirs(os.path.join(os.getcwd(), "tmp"), exist_ok=True)
-        shell_command = r"powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -NoExit"
-        working_dir = r"C:\testbed"
-        run_kwargs = {
-            "cpu_count": CPU_CORES,  # cpu_quota is Linux-only
-            "mem_limit": MEM_LIMIT,
-        }
-
-        container = client.containers.run(
+        session = cls._start_container(
             image_name,
-            name=container_name,
-            command=shell_command,
-            stdin_open=True,
-            tty=True,
-            detach=True,
-            environment={
-                "TERM": "xterm-mono",
-            },
-            working_dir=working_dir,
-            extra_hosts=extra_hosts,
-            volumes={
-                os.path.join(os.getcwd(), "tmp"): {
-                    "bind": r"C:\mnt_tmp",
-                    "mode": "rw",
-                }
-            },
-            **run_kwargs,
+            container_id,
+            18000,
+            command_timeout
         )
-
-        session = cls(
-                    container, 
-                    command_timeout=command_timeout,
-                )
 
         # We avoid copying due to performance issues
         # session.copy_dir_to_container(str(workspace), "/workspace")
 
         url = f'https://github.com/{instance["repo"]}.git'
         base_commit = instance["base_commit"]
-
-        # 2) Ensure Git is installed (Chocolatey if possible; fallback to official silent installer).
-        #    - Chocolatey official install script: https://community.chocolatey.org/install.ps1
-        #    - git.install package params include /GitOnlyOnPath, /GitAndUnixToolsOnPath, /NoAutoCrlf, etc.
-        #    - Git for Windows silent flags are documented by the project itself.
-        session.send_command(r'''
+        git_install_cmd = r'''
 # Skip if git already present
 if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) {
   try {
@@ -316,13 +288,18 @@ if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) {
   $gitBin = 'C:\Program Files\Git\bin'
   if (Test-Path $gitCmd) { $env:PATH = "$gitCmd;$gitBin;$env:PATH" }
 }
-''')
-        res: CommandResult = session.send_command(
-            r'git config --global --add safe.directory "C:\testbed"; git init "C:\testbed"; cd "C:\testbed"; git remote add origin {url}; git fetch --depth 1 origin {base}; git reset --hard {base}'.format(
+'''
+        repo_clone_cmd = r'git config --global --add safe.directory "C:\testbed"; git init "C:\testbed"; cd "C:\testbed"; git remote add origin {url}; git fetch --depth 1 origin {base}; git reset --hard {base}'.format(
                 url=url, base=base_commit
             )
-        )
-        
+        session.preparation_commands.extend([git_install_cmd, repo_clone_cmd])
+
+        # 2) Ensure Git is installed (Chocolatey if possible; fallback to official silent installer).
+        #    - Chocolatey official install script: https://community.chocolatey.org/install.ps1
+        #    - git.install package params include /GitOnlyOnPath, /GitAndUnixToolsOnPath, /NoAutoCrlf, etc.
+        #    - Git for Windows silent flags are documented by the project itself.
+        session.send_command(git_install_cmd)
+        res: CommandResult = session.send_command(repo_clone_cmd)
         session.send_command("ls")
         
         if int(res.metadata.exit_code) != 0:

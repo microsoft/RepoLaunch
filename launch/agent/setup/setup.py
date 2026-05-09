@@ -210,6 +210,7 @@ def start_bash_session(state: AgentState) -> dict:
     return {
         "pypiserver": server,  # Keep name for backward compatibility
         "session": session,
+        "preparation_commands": session.preparation_commands
     }
 
 

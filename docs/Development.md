@@ -106,7 +106,7 @@ LLM API logs (input/output/token_count/cost) will be saved in `{workspace_root}/
 | Field            | Description                                                                                      |
 |------------------|--------------------------------------------------------------------------------------------------|
 | `instance_id`    | Unique identifier of the instance                                                                |
-| `base_image`     | Docker base image                            |
+| `docker_image_layers` | {"base_image": ..., "setup_layer": list[commands]}, can convert to Dockerfile |
 | `docker_image`   | Commited Image                               |
 | `setup_commands` | Records of shell commands used to set up the environment                                            |
 | `test_commands`  | Records of shell commands used to run the tests with verbose output                                                 |
@@ -122,6 +122,7 @@ The `setup_commands` and `test_commands` of the first step would be noisy, with 
 
 | Field            | Description                                                                                      |
 |------------------|--------------------------------------------------------------------------------------------------|
+| `docker_image_layers` | {"base_image": ..., "setup_layer": list[commands], "organize_layer":  list[commands]}, can convert to Dockerfile |
 | `organize_duration`       | Time taken to run the process (in minutes)         |
 | `organize_completed`      | Boolean indicating whether the organization attempt completed successfully                                  |
 | `rebuild_commands`    | Minimal commands to rebuild the repo instance                                                                |
@@ -203,3 +204,19 @@ python -m launch.scripts.upload_docker\
     --dataset  data/test1/organize.jsonl\
     --clear_after_push 0 # 0 for false and 1 for true
 ```
+
+### Re-assemble Dockerfile (Beta / Preview)
+
+Reconstruct Dockerfile of a commited image from instance["docker_image_layers"].
+
+Note this script is still under development. If you find any bugs of this script, welcome GitHub issues and pull requests.
+
+```bash
+python -m launch.scripts.gen_dockerfile  \
+    --dataset data/..../organize.jsonl  \
+    --platform linux \
+    # or windows 
+    --output_dir data/dockerfiles
+```
+
+Android images are also linux-arch, so use --platform=linux

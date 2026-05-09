@@ -78,11 +78,20 @@ def save_setup_result(state: AgentState) -> dict:
     except Exception as e:
         logger.error(f"Failed to cleanup session: {e}")
 
+    docker_image_layers = {
+        "base_image": state["base_image"],
+        "setup_layer": [
+            i.split(" (exit code:")[0] 
+            for i in 
+            state["preparation_commands"] + state["setup_commands"] + state["test_commands"]
+        ]
+    }
+    
     result = json.dumps(
             {
                 "instance_id": instance_id,
-                "base_image": state["base_image"],
                 "docker_image": state.get("docker_image", None),
+                "docker_image_layers": docker_image_layers,
                 "setup_commands": state["setup_commands"],
                 "test_commands": state["test_commands"],
                 "duration": duration,

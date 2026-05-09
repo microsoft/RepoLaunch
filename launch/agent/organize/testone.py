@@ -236,7 +236,7 @@ If you think it is impossible to run each testcase separately, give up by output
         ),
     ]
     prefix_messages = len(messages)
-    commands = []
+    commands = state["commands"]
     step = 0
     success = False
     logger.info("-" * 10 + "Start unit test conversation" + "-" * 10)

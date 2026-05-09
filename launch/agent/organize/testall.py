@@ -445,7 +445,7 @@ If successful, please submit.
         ),
     ]
     prefix_messages = len(messages)
-    commands = []
+    commands = state["commands"]
     step = 0
     answer = None
     logger.info("-" * 10 + "Start test conversation" + "-" * 10)
@@ -477,20 +477,6 @@ If successful, please submit.
         test_status = json.loads(test_status)
     except:
         test_status = None
-    
-    # # Combine test and print commands into final list
-    # final_commands = []
-    # if test_command:
-    #     final_commands.append(test_command)
-    # if print_command:
-    #     final_commands.append(print_command)
-    
-    # # If we got both test and print commands, use them
-    # # Otherwise fall back to answer (for backwards compatibility)
-    # if final_commands:
-    #     test_commands = final_commands
-    # else:
-    #     test_commands = [answer] if answer else []
     
     return {
         "messages": messages,

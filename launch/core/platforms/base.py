@@ -186,6 +186,7 @@ class BaseRuntime(ABC):
     # as windows os can run linux container, on windows computer you can also have platform="linux"
     command_timeout: int # in minute
     stopped: bool
+    preparation_commands: list[str] = []
 
     @abstractmethod
     def send_command(self, command: str, timeout: int|None = None) -> CommandResult:

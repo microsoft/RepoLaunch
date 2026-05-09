@@ -162,6 +162,9 @@ def test_runtime_constructor_attributes(runtime_cls, expected_attrs, patch_runti
 
         assert isinstance(runtime.stopped, bool)
         assert runtime.stopped is False
+
+        assert isinstance(runtime.preparation_commands, list)
+
     finally:
         runtime.stopped = True
 
@@ -238,6 +241,7 @@ def test_runtime_integration_workflow(runtime_platform, base_image):
             platform=runtime_platform,
         )
         assert_readme_visible(base_session)
+        assert len(base_session.preparation_commands) > 0
 
         assert base_session.apply_patch(PATCH_CONTENT, verbose=True) is True
         rm_res = base_session.send_command("rm log.out")

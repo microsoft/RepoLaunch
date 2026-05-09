@@ -39,6 +39,7 @@ def main(
         
         swe_instance = {
             **instance,
+            "docker_image_layers": result.get("docker_image_layers", {}),
             "setup_cmds": result.get("setup_commands", []),
             "test_cmds": result.get("test_commands", []),
             "print_cmds": result.get("print_commands", []),
