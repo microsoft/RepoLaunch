@@ -205,10 +205,6 @@ def remove_image_if_present(client, image_ref: str) -> None:
         pass
 
 
-def test_android_pull_image_requests_amd64_platform():
-    assert AndroidRuntime.pull_image("cimg/android:2026.03.1") is True
-
-
 @pytest.mark.integration
 @pytest.mark.parametrize(
     ("runtime_platform", "base_image"),

@@ -1,0 +1,80 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ubuntu:
+    name: Ubuntu Docker tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Check Docker
+        run: |
+          docker version
+          docker info
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+
+      - name: Run tests
+        run: pytest -rA
+
+  windows:
+    name: Windows container tests
+    runs-on: windows-2025
+    timeout-minutes: 90
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Check Docker
+        run: |
+          $dockerService = Get-Service docker -ErrorAction SilentlyContinue
+          if ($dockerService -and $dockerService.Status -ne "Running") {
+            Start-Service docker
+          }
+          docker version
+          docker info
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+
+      - name: Run tests
+        run: pytest -rA
