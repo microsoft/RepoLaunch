@@ -9,7 +9,7 @@ dependencies = [
     "docker>=7.1.0",
     "fire>=0.7.0",
     "gitpython>=3.1.44",
-    "langchain==0.3.26",
+    "langchain==0.3.30",
     "langchain-community==0.3.27",
     "langchain-core==0.3.68",
     "litellm",
