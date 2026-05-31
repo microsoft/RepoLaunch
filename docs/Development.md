@@ -205,11 +205,11 @@ python -m launch.scripts.upload_docker\
     --clear_after_push 0 # 0 for false and 1 for true
 ```
 
-### Re-assemble Dockerfile (Beta / Preview)
+### Re-assemble Dockerfile
 
 Reconstruct Dockerfile of a commited image from instance["docker_image_layers"].
 
-Note this script is still under development. If you find any bugs of this script, welcome GitHub issues and pull requests.
+The Dockerfile behavior strictly aligns with that of RepoLaunch-created images. It produces two layers (the setup layer and the organize layer) with error commands silenty bypassed instead of interuptting the build.
 
 ```bash
 python -m launch.scripts.gen_dockerfile  \

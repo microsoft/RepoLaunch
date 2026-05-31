@@ -71,6 +71,19 @@ jobs:
           docker version
           docker info
 
+      - name: Install Docker Buildx
+        # The windows-2025 runner ships Docker Engine but not the buildx CLI plugin, which
+        # test_gen_dockerfile_syntax needs for `docker buildx build --check`. Install the
+        # plugin binary so it uses the implicit 'default' builder (the host docker daemon);
+        # we deliberately do NOT create a docker-container builder (that driver is Linux-only).
+        run: |
+          $version = "v0.34.1"
+          $url = "https://github.com/docker/buildx/releases/download/$version/buildx-$version.windows-amd64.exe"
+          $dest = Join-Path $env:ProgramData "Docker\cli-plugins"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Invoke-WebRequest -Uri $url -OutFile (Join-Path $dest "docker-buildx.exe")
+          docker buildx version
+
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip

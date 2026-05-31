@@ -209,9 +209,9 @@ def remove_image_if_present(client, image_ref: str) -> None:
 @pytest.mark.parametrize(
     ("runtime_platform", "base_image"),
     [
-        pytest.param("linux", "ubuntu:26.04", id="linux"),
+        pytest.param("linux", "rust:1.90", id="linux"),
         pytest.param("android", "cimg/android:2026.03.1", id="android"),
-        pytest.param("windows", "mcr.microsoft.com/windows/server:ltsc2025", id="windows"),
+        pytest.param("windows", "mcr.microsoft.com/dotnet/sdk:8.0-windowsservercore-ltsc2022", id="windows"),
         #pytest.param("macos", "sickcodes/docker-osx:auto", id="macos"),
     ],
 )
