@@ -27,7 +27,9 @@ RepoLaunch now still uses traditional Thought-Action format for agent actions, b
 
 ## Launch your Repository
 
-To use RepoLaunch Agent to launch your repository, please refer to [Development.md](./docs/Development.md)
+To run RepoLaunch agent to launch your repository, please refer to [Development.md](./docs/Development.md).
+
+Trajectory & result demos of RepoLaunch agent: [RepoLaunch-Trajectory-Archive](https://github.com/SWE-bench-Live/RepoLaunch-trajectory-archive).
 
 RepoLaunch can:
 1) Install all dependencies and build the repository, delivered as a docker image, with docker image layer info collected for Dockerfile reconstruction;
