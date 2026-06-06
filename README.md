@@ -1,13 +1,26 @@
-# `🚀 RepoLaunch Agent`
+<h1 align="center"> 🚀 RepoLaunch Agent </h1>
 
-*Turning Any Codebase into Testable Sandbox Environment*
+<p align="center">
+  <a href="https://arxiv.org/abs/2603.05026">
+        <img alt="paper" src="https://img.shields.io/badge/ArXiv-%23B31B1B?style=for-the-badge&logo=arXiv">
+  </a>
+  <a href="./LICENSE">
+        <img alt="License" src="https://img.shields.io/github/license/SWE-bench/SWE-bench?style=for-the-badge">
+  </a>
+</p>
 
-Paper: [RepoLaunch: Automating Build&Test Pipeline of Code Repositories on ANY Language and ANY Platform](https://arxiv.org/abs/2603.05026)
+<p align="center">
+  <em>Turning Any Codebase into Testable Sandbox Environment</em>
+</p>
 
-RepoLaunch now supports 
+RepoLaunch is the **first** agentic SWE tool for repository build and test management across programming languages and operating systems. Given a code repository, RepoLaunch can:
+- Install all dependencies and build the repository, delivered as a docker image, with docker image layer info collected for Dockerfile reconstruction;
+- Organize the command to rebuild the repository inside a container after repo modifications;
+- Organize command to test the repository, write a parser to parse test output into structured testcase-status mapping, and optionally find per-testcase running command.
+
+RepoLaunch now supports:
 - All mainstram languages : C, C++, C#, Python, Java, Node.js (JS & TS), Go, Rust.
 - Building on linux images, android images, windows images.
-
 
 ## Notifications
 
@@ -31,11 +44,6 @@ To run RepoLaunch agent to launch your repository, please refer to [Development.
 
 Trajectory & result demos of RepoLaunch agent: [RepoLaunch-Trajectory-Archive](https://github.com/SWE-bench-Live/RepoLaunch-trajectory-archive).
 
-RepoLaunch can:
-1) Install all dependencies and build the repository, delivered as a docker image, with docker image layer info collected for Dockerfile reconstruction;
-2) Organize the command to rebuild the repository inside a container after repo modifications;
-3) Organize command to test the repository, write a parser to parse test output into structured testcase-status mapping, and optionally find per-testcase running command.
-
 The basic workflow of RepoLaunch agent is as follows:
 
 ![RepoLaunch Workflow](docs/assets/1.png)
@@ -48,7 +56,7 @@ Please refer to [CONTRIBUTING.md::Contributing to RepoLaunch Source Codes](./CON
 
 ### Use RepoLaunch to Create New Software Engineering Benchmarks
 
-So far the major contribution of RepoLaunch is to create tasks for [SWE-bench-Live](https://github.com/microsoft/SWE-bench-Live), where the creation of SWE-tasks is based purely on scraping GitHub issues and PRs. Now SWE-bench-Live datasets have been used for benchmarking of LLMs and coding agents, and training (SFT/RL) of coding LLMs. 
+So far the major contribution of RepoLaunch is to build execution environment for [SWE-bench-Live](https://github.com/microsoft/SWE-bench-Live), where the creation of SWE-tasks is based purely on scraping GitHub issues and PRs. Now SWE-bench-Live datasets have been used for benchmarking of LLMs and coding agents, and agentic training (SFT/RL) of code LMs. 
 
 We encourage new research projects to design new kinds of SWE-tasks for LLM benchmarking and training, with task creation automated by RepoLaunch.
 
