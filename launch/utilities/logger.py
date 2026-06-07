@@ -23,6 +23,7 @@ def setup_logger(instance_id: str, log_file: Path | list[Path], printing: bool =
         logging.Logger: Configured logger instance
     """
     logger = logging.getLogger(instance_id)
+    clean_logger(logger)
     logger.setLevel(logging.INFO)
     
     # Convert single path to list for uniform handling
