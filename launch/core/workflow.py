@@ -62,14 +62,14 @@ from launch.agent.organize.parselog import generate_log_parser
 from launch.agent.organize.testone import organize_unit_test
 from launch.agent.organize.save import save_organize_result
 
-def define_organize_workflow(max_steps: int = 20):
+def define_organize_workflow(max_steps: int = 20, get_pertest_cmd: bool = True):
     """
     Define the workflow graph for repository environment setup.
     
     Args:
-        max_trials (int): Maximum number of setup/verify retry attempts
-        max_steps_setup (int): Maximum steps allowed for setup 
-        max_steps_verify (int): Maximum steps allowed for verify 
+        max_steps (int): Maximum steps allowed for each organize agent
+        get_pertest_cmd (bool): Whether to generate commands for running a
+            single testcase in the organize stage
         
     Returns:
         Compiled workflow graph ready for execution
@@ -84,13 +84,14 @@ def define_organize_workflow(max_steps: int = 20):
                            max_steps = max_steps)
     parselog_agent = partial(generate_log_parser,
                             max_steps = max_steps)
-    testone_agent = partial(organize_unit_test, 
-                           max_steps = max_steps)
     graph.add_node("container", reload_container)
     graph.add_node("rebuild", rebuild_agent)
     graph.add_node("testall", testall_agent)
     graph.add_node("parselog", parselog_agent)
-    graph.add_node("testone", testone_agent)
+    if get_pertest_cmd:
+        testone_agent = partial(organize_unit_test,
+                                max_steps = max_steps)
+        graph.add_node("testone", testone_agent)
     graph.add_node("save_result", save_organize_result)
 
     graph.add_conditional_edges(
@@ -116,9 +117,10 @@ def define_organize_workflow(max_steps: int = 20):
     graph.add_conditional_edges(
         "parselog",
         lambda x: "return" if (not bool(x.get("success", False))) or bool(x.get("exception", False)) else "continue",
-        {"return": "save_result", "continue": "testone"},
+        {"return": "save_result", "continue": "testone" if get_pertest_cmd else "save_result"},
     )
-    graph.add_edge("testone", "save_result")
+    if get_pertest_cmd:
+        graph.add_edge("testone", "save_result")
     graph.add_edge("save_result", END)
     
     return graph.compile()

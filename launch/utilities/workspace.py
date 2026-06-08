@@ -45,6 +45,7 @@ class WorkSpace:
     max_steps_setup: int = 20
     max_steps_verify: int = 20
     max_steps_organize: int = 20
+    get_pertest_cmd: bool = True
     timeout: int = 30
     image_prefix: str = "repolaunch/dev"
     
@@ -190,6 +191,7 @@ def prepare_workspace(
         max_steps_setup=config.max_steps_setup,
         max_steps_verify=config.max_steps_verify,
         max_steps_organize=config.max_steps_organize,
+        get_pertest_cmd=config.mode.get("get_pertest_cmd", True),
         timeout=config.timeout
     )
 

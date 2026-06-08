@@ -65,7 +65,8 @@ def organize(instance: dict, workspace: WorkSpace):
         AgentState: Final state after workflow completion
     """
     workflow = define_organize_workflow(
-        max_steps = workspace.max_steps_organize
+        max_steps = workspace.max_steps_organize,
+        get_pertest_cmd = workspace.get_pertest_cmd,
     )
     logger = workspace.logger
     initial_state = AgentState.create(

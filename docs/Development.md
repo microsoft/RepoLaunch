@@ -93,7 +93,7 @@ The configs required for this step:
 
 | Field              | Type    |  Description                                                                 |
 |--------------------|---------|-----------------------------------------------------------------------------|
-| `mode`             | dict     |   default to {"setup": true, "organize": false}, set to {"setup": true, "organize": true} to do the two steps together, or set to {"setup": false, "organize": true} to do the second step separately AFTER the first step is DONE    |
+| `mode`             | dict     |   default to `{"setup": true, "organize": false}`, set to `{"setup": true, "organize": true}` to do the two steps together, or set to `{"setup": false, "organize": true}` to do the second step separately AFTER the first step is DONE. By default the `testone` step in the organize stage to get the command to specify each single test to run is enabled; specify `"mode": {"setup": true, "organize": true, "get_pertest_cmd": false}` to disable this step in the organize stage.  |
 | `max_steps_organize` | integer |   how many steps agent can attemp to organize the commands, default 20   |
 
 
