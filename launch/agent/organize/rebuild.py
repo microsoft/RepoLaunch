@@ -6,7 +6,7 @@ import shutil
 import time
 from typing import Any, Literal, ClassVar  
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from launch.agent.action_parser import ActionParser
@@ -185,7 +185,7 @@ def reload_container(state: AgentState) -> dict:
 SETUP_CONVERSATION_WINDOW = 40
 
 
-def analyze_verification_with_llm(llm, submitted_commands: str, verification_output: str) -> bool:
+def analyze_verification_with_llm(llm, submitted_commands: str, verification_output: str) -> BaseMessage:
     """
     Use LLM to analyze verification results and determine if rebuild was successful.
     
@@ -221,15 +221,8 @@ Respond with EXACTLY one of these two words:
 
 Your response:"""
 
-    try:
-        response = llm.invoke([HumanMessage(analysis_prompt)])
-        analysis = response.content.strip().upper()
-        
-        # Return True if LLM says SUCCESS, False otherwise
-        return analysis == "SUCCESS"
-    except Exception as e:
-        # Fallback to return code check if LLM analysis fails
-        return analysis == "FAILURE"
+    response = llm.invoke([HumanMessage(analysis_prompt)])
+    return response
 
 @auto_catch
 def organize_setup(state: AgentState, max_steps: int) -> dict:
@@ -315,9 +308,12 @@ def organize_setup(state: AgentState, max_steps: int) -> dict:
             verification_output = verification_result.to_observation()
             
             # Use LLM to analyze verification results instead of just checking return code
-            verification_success = analyze_verification_with_llm(
+            response = analyze_verification_with_llm(
                 llm, submitted_commands, verification_output
             )
+            update_accumulative_cost(cost["organize"], response)
+            logger.info(form_llm_cost_log(response))
+            verification_success = "SUCCESS" in response.content.strip().upper()
             
             if verification_success:
                 # Verification passed according to LLM analysis

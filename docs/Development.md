@@ -15,7 +15,7 @@ pip install -e .
 
 ## Run RepoLaunch
 
-We provide an example input file `data/examples/dataset.jsonl` and a run config `data/examples/config.json` in [examples](../data/examples) to help you quickly go through the launch process.
+We provide an example input file `data/examples/dataset.jsonl` and a run config `data/examples/config.json` in [examples](../data/examples) to help you quickly go through the launch process. Expected output files are `data/examples/result.jsonl` and `data/examples/playground/`.
 
 Before getting started, please set your `TAVILY_API_KEY` environment variable. We use [tavily](https://www.tavily.com/) for LLM search engine support.
 
