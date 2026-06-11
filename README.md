@@ -70,7 +70,7 @@ Please refer to [CONTRIBUTING.md::Future Directions to Study](./CONTRIBUTING.md#
 
 ```bibtex
 @article{li2026repolaunch,
-  title={RepoLaunch: Automating Build\&Test Pipeline of Code Repositories on ANY Language and ANY Platform},
+  title={RepoLaunch: Automating Build and Management of Code Repositories across Languages and Platforms},
   author={Li, Kenan and Li, Rongzhi and Zhang, Linghao and Jin, Qirui and Zhu, Liao and Huang, Xiaosong and Zhang, Geng and Zhang, Yikai and He, Shilin and Xie, Chengxing and others},
   journal={arXiv preprint arXiv:2603.05026},
   year={2026}
