@@ -1,13 +1,24 @@
 """
 Logging utilities for launch operations with file and console output.
 """
+import io, sys
 import logging
 from pathlib import Path
-
 from rich.logging import RichHandler
-
-import io, sys
 from rich.console import Console
+
+
+# https://github.com/microsoft/RepoLaunch/pull/31
+_shared_console: Console | None = None
+def _get_shared_console() -> Console:
+    global _shared_console
+    if _shared_console is None:
+        # Wrap stdout in a UTF-8 TextIOWrapper; replace any bad chars defensively
+        utf8_stdout = io.TextIOWrapper(
+            sys.stdout.buffer, encoding="utf-8", errors="replace"
+        )
+        _shared_console = Console(file=utf8_stdout, soft_wrap=True)
+    return _shared_console
 
 
 def setup_logger(instance_id: str, log_file: Path | list[Path], printing: bool = True) -> logging.Logger:
@@ -43,10 +54,7 @@ def setup_logger(instance_id: str, log_file: Path | list[Path], printing: bool =
     # logger.addHandler(ch)
     # add rich handler
     if printing:
-        # Wrap stdout in a UTF-8 TextIOWrapper; replace any bad chars defensively
-        utf8_stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-        console = Console(file=utf8_stdout, soft_wrap=True)
-        rh = RichHandler(console=console, rich_tracebacks=True, show_path=False)
+        rh = RichHandler(console=_get_shared_console(), rich_tracebacks=True, show_path=False)
         rh.setLevel(logging.INFO)
         logger.addHandler(rh)
     return logger
