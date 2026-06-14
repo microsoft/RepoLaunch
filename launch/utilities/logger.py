@@ -1,23 +1,15 @@
 """
 Logging utilities for launch operations with file and console output.
 """
+import io, sys
 import logging
 from pathlib import Path
-
 from rich.logging import RichHandler
-
-import io, sys
 from rich.console import Console
 
-# A fresh TextIOWrapper around sys.stdout.buffer per setup_logger call closes
-# the underlying buffer (= process stdout) once the wrapper is garbage
-# collected after clean_logger removes the handler. The next setup_logger call
-# in the same process (e.g. the organize stage after the setup stage) then
-# fails with "ValueError: I/O operation on closed file". Share a single,
-# never-collected console instead.
+
+# https://github.com/microsoft/RepoLaunch/pull/31
 _shared_console: Console | None = None
-
-
 def _get_shared_console() -> Console:
     global _shared_console
     if _shared_console is None:
