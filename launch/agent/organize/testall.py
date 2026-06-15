@@ -355,7 +355,16 @@ def organize_test_cmd(state: AgentState, max_steps: int) -> dict:
             #    test_output = session.send_command(print_command).output        
             result = run_parser(action.args, test_output)
             if (not isinstance(result, dict)):
-                content = f"Your python parser script should return a dict[str, Literal['pass', 'fail', 'skip']]. However, your script returned type {type(result)}. Please adjust your parser script to make sure it returns the correct format."
+                content = (
+                    "Your python parser must return a dict[str, Literal['pass', "
+                    f"'fail', 'skip']], but it produced type {type(result).__name__}. "
+                    f"The value or error it returned was:\n{result}\n"
+                    "If the above is a traceback, fix the parser so it does not "
+                    "raise. Note: the log passed to your parser is the raw stdout "
+                    "of your last command and may include the echoed command line "
+                    "and the shell prompt, so strip any non-report lines before "
+                    "parsing."
+                )
                 return SetupObservation(content=content, is_stop=False)
             if not result:
                 content = (
