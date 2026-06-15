@@ -189,14 +189,14 @@ def verify(state: AgentState, max_steps: int) -> dict:
         logger.info(f"\n{response.pretty_repr()}\n\n{form_llm_cost_log(response)}\n")
         messages.append(response)
         action = parse_verify_action(response.content)
-        if action.action == "command":
+        if action and action.action == "command":
             commands.append(action.args)
         observation = observation_for_verify_action(action, session)
         message = HumanMessage(f"Observation:\n{observation.content}")
         # print(message.pretty_repr())
         logger.info(message.pretty_repr())
         messages.append(message)
-        if action.action == "issue":
+        if action and action.action == "issue":
             if observation.content == "":
                 success = True
                 logger.info("The setup is successful")
