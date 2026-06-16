@@ -173,7 +173,17 @@ def generate_log_parser(state: AgentState, max_steps: int = 20) -> dict:
             try:
                 result = run_parser(improved_parser, test_output)
                 if not isinstance(result, dict):
-                    content = f"Your python parser script should return a dict[str, Literal['pass', 'fail', 'skip']]. However, your script returned type {type(result)}. Please adjust your parser script to make sure it returns the correct format."
+                    truncated_result = str(result)
+                    if len(truncated_result) > 40000:
+                        truncated_result = truncated_result[:40000] + "\n...result truncated due to length...\n"
+                    content = (
+                        f"Your python parser script must return a dict[str, Literal['pass', 'fail', 'skip']]."
+                        f"However, it produced type {type(result).__name__}. The value or error your parser returned was:\n{truncated_result}\n"
+                        "If the above is a traceback, fix the parser so it does not raise. "
+                        "Note: the log passed into your parser is the raw stdout of your last command and may include the echoed command line "
+                        "and the shell prompt, so your parser should be able to strip/ignore non-report lines.\n"
+                        "Now adjust your parser script to make sure it returns the required format."
+                    )
                     return ParseLogObservation(content=content, is_stop=False)
                 improved_test_status = result
                 truncated_result = json.dumps(result, indent=2)
