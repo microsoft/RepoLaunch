@@ -250,6 +250,23 @@ def _is_descendant(
     cache.setdefault(descendant, {})[ancestor] = reverse_is_descendant
     return is_descendant, True
 
+def apply_res_for_same_commit(
+        current_instance: SWEInstance, 
+        medium_instance: SWEInstance, 
+    ) -> SWEInstance:
+    current_instance["rebuild_cmds"] = medium_instance["rebuild_cmds"]
+    current_instance["test_cmds"] = medium_instance["test_cmds"]
+    current_instance["print_cmds"] = medium_instance["print_cmds"]
+    current_instance["log_parser"] = medium_instance["log_parser"]
+    current_instance["test_status"] = medium_instance["test_status"]
+    if medium_instance.get("per_test_command_generator", False):
+        current_instance["per_test_command_generator"] = medium_instance["per_test_command_generator"]
+    if medium_instance.get("pertest_command", False):
+        current_instance["pertest_command"] = medium_instance["pertest_command"]
+    current_instance["docker_image"] = medium_instance["docker_image"]
+    current_instance["docker_image_layers"] = medium_instance["docker_image_layers"]
+    return current_instance
+
 def run_one_commit_test(
         current_instance: SWEInstance, 
         medium_instance: SWEInstance, 
@@ -377,9 +394,15 @@ def main(config_path: str):
         instance_group_mapping: dict[str, str] = {}
         for success_repo in success_repos:
             for instance in groups[success_repo["instance_id"]]["before"]:
+                if instance["base_commit"].strip() == success_repo["base_commit"].strip():
+                    all_success_instances.append(apply_res_for_same_commit(instance, success_repo))
+                    continue
                 exec_tasks.append((instance, success_repo, False, config))
                 instance_group_mapping[instance["instance_id"]] = success_repo["instance_id"]+"before"
             for instance in groups[success_repo["instance_id"]]["after"]:
+                if instance["base_commit"].strip() == success_repo["base_commit"].strip():
+                    all_success_instances.append(apply_res_for_same_commit(instance, success_repo))
+                    continue
                 exec_tasks.append((instance, success_repo, True, config))
                 instance_group_mapping[instance["instance_id"]] = success_repo["instance_id"]+"after"
         not_applicable_instances: DefaultDict[str, list[SWEInstance]] = defaultdict(list)
