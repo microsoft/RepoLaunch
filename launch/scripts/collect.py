@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal, Optional, Any
 from fire import Fire
 
 def main(
@@ -8,7 +8,7 @@ def main(
     platform: Literal["linux", "windows"] = "linux",
     step: Literal["setup", "organize"] = "setup",
     instance_ids: Optional[list[str]] = None
-):
+) -> list[dict[str, Any]]:
     workspace = Path(workspace)
     playground = workspace / "playground"
     output_jsonl = workspace / f"{step}.jsonl"
@@ -63,6 +63,7 @@ def main(
         for instance in swe_instances:
             f.write(json.dumps(instance) + "\n")
     print(f"Saved {len(swe_instances)} instances to {output_jsonl}")
+    return swe_instances
 
 if __name__ == "__main__":
     Fire(main)
