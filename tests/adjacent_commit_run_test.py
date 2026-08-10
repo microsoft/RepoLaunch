@@ -53,15 +53,15 @@ def test_split_uses_timestamp_ancestry_and_disk_cache(tmp_path, monkeypatch):
 
     group = adjacent_commit_run.split_commits_for_one_repo(instances)
 
-    assert group["medium"]["instance_id"] == "middle"
+    assert [instance["instance_id"] for instance in group["medium"]] == [
+        "middle",
+        "same",
+    ]
     assert [instance["instance_id"] for instance in group["before"]] == [
         "old",
         "branch",
     ]
-    assert [instance["instance_id"] for instance in group["after"]] == [
-        "new",
-        "same",
-    ]
+    assert [instance["instance_id"] for instance in group["after"]] == ["new"]
     assert requested_heads == ["new-commit", "old-commit", "branch-commit"]
 
     cache = json.loads((tmp_path / "o%2Fr.json").read_text())

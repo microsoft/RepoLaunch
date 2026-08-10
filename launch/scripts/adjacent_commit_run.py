@@ -7,7 +7,9 @@ python -m launch.scripts.adjacent_commit_run --config-path ...
 
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from datetime import datetime, timezone
+from functools import partial
 import os, json
 from pathlib import Path
 import tempfile
@@ -24,7 +26,8 @@ from launch.utilities.config import Config, load_config
 from launch.scripts import collect
 
 MAX_ITERATION = 8
-COMMIT_RELATIONSHIP_CACHE_DIR = str(Path(__file__).resolve().parents[2] / ".cache" / "adjacent_commit_run")
+COMMIT_RELATIONSHIP_CACHE_DIR = Path(__file__).resolve().parents[2] / ".cache" / "adjacent_commit_run"
+TEST_COUNT_THRESHOLD_FOR_COMMITS_BEFORE = 0.80
 
 _commit_relationship_cache_lock = threading.Lock()
 
@@ -45,20 +48,23 @@ class SWEInstance(TypedDict):
 
 class Group(TypedDict):
     before: list[SWEInstance]
-    medium: SWEInstance
+    medium: list[SWEInstance]
     after: list[SWEInstance]
 
+def logger(config: Config, base_commit: str, text: str):
+    os.makedirs(os.path.join(config.workspace_root, "adjacent_commit_run_log"), exist_ok=True)
+    log_path = os.path.join(config.workspace_root, "adjacent_commit_run_log", f"{base_commit}.log")
+    current_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    with open(log_path, "a") as f:
+        f.write(
+            f"\n\n>>>>>>[{current_time}]\n{text}\n<<<<<<\n\n"
+        )
+
 def launch_one_round(config: Config, dataset: list[SWEInstance], instance_ids: list[str]) -> list[SWEInstance]:
-    if config.mode["setup"]:
-        run_setup(config, dataset)
-        collect.main(config.workspace_root, platform = config.platform, step = "setup", instance_ids = instance_ids)
-    if config.mode["organize"]:
-        if not os.path.exists(f"{config.workspace_root}/setup.jsonl"):
-            raise RuntimeError(f"{config.workspace_root}/setup.jsonl NOT FOUND. You need to finish the setup step first.")
-        with open(f"{config.workspace_root}/setup.jsonl") as f:
-            dataset = [json.loads(line) for line in f]
-        run_organize(config, dataset)
-        success_repos = collect.main(config.workspace_root, platform = config.platform, step = "organize", instance_ids = instance_ids)
+    run_setup(config, dataset)
+    success_repos = collect.main(config.workspace_root, platform = config.platform, step = "setup", instance_ids = instance_ids)
+    run_organize(config, success_repos)
+    success_repos = collect.main(config.workspace_root, platform = config.platform, step = "organize", instance_ids = instance_ids)
     return success_repos
 
 def split_commits_for_one_repo(instances: list[SWEInstance]) -> Group:
@@ -66,7 +72,7 @@ def split_commits_for_one_repo(instances: list[SWEInstance]) -> Group:
     returns:
     {
         "before": [instances with commits that are not descendants of medium commits], 
-        "medium": instance with timestamp at the medium among instances with max num of overlapped base commits,
+        "medium": [instances with max num of overlapped base commits, if multiple base commits shoot, choose the instances with the same base commits and with the timestamps at the medium],
         "after": [instances with commits that are descendants of medium commits]
     }
     '''
@@ -94,7 +100,7 @@ def split_commits_for_one_repo(instances: list[SWEInstance]) -> Group:
     candidates: list[SWEInstance] = []
     for v in overlap_commit_count.values():
         if len(v) == most_overlap_commit_count:
-            candidates += v
+            candidates.extend(v)
     # sorted() is stable, so equal timestamps retain the caller's order. For an
     # even-sized group, choose the upper median so that `medium` is always an
     # actual instance.
@@ -116,7 +122,8 @@ def split_commits_for_one_repo(instances: list[SWEInstance]) -> Group:
         range(len(candidates)), key=lambda index: timestamp(candidates[index])
     )
     medium_index = ordered_indices[len(ordered_indices) // 2]
-    medium = candidates[medium_index]
+    medium_instance = candidates[medium_index]
+    medium: list[SWEInstance] = overlap_commit_count[medium_instance["base_commit"]]
 
     before: list[SWEInstance] = []
     after: list[SWEInstance] = []
@@ -125,12 +132,12 @@ def split_commits_for_one_repo(instances: list[SWEInstance]) -> Group:
         cache_changed = False
         try:
             for instance in instances:
-                if instance["instance_id"] == medium["instance_id"]:
+                if instance["base_commit"] == medium_instance["base_commit"]:
                     continue
 
                 descendant, relationship_was_fetched = _is_descendant(
                     repo,
-                    ancestor=medium["base_commit"],
+                    ancestor=medium_instance["base_commit"],
                     descendant=instance["base_commit"],
                     cache=cache,
                 )
@@ -295,8 +302,9 @@ def run_one_commit_test(
     res: SWEInstance = {}
     res["repo"] = medium_instance["repo"]
     res["base_commit"] = base_commit
+    instance_logger = partial(logger, config=config, base_commit=base_commit)
 
-    container = SetupRuntime.from_base_image(medium_instance["docker_image"], medium_instance, config.platform, config.timeout)
+    container = SetupRuntime.from_launch_image(medium_instance["docker_image"], base_commit, config.platform, config.timeout)
     for command in commands:
         container.send_command(command)
     container.send_command(" ; ".join(medium_instance["rebuild_cmds"]))
@@ -307,14 +315,15 @@ def run_one_commit_test(
 
     if after_medium and len(status) >= len(medium_instance["test_status"]):
         success = True
-    if (not after_medium) and len(status) >= int(len(medium_instance["test_status"])*0.80):
+    if (not after_medium) and len(status) >= int(len(medium_instance["test_status"])*TEST_COUNT_THRESHOLD_FOR_COMMITS_BEFORE):
         success = True
     if not success:
         return res, False
 
-    container = SetupRuntime.from_base_image(medium_instance["docker_image"], medium_instance, config.platform, config.timeout)
+    container = SetupRuntime.from_launch_image(medium_instance["docker_image"], base_commit, config.platform, config.timeout)
     for command in commands:
-        container.send_command(command)
+        out = container.send_command(command).to_observation()
+        instance_logger(text=out)
     container.commit(image_name=config.image_prefix, tag=base_commit)
     del container
     res["rebuild_cmds"] = medium_instance["rebuild_cmds"]
@@ -327,27 +336,20 @@ def run_one_commit_test(
     if medium_instance.get("pertest_command", False):
         res["pertest_command"] = medium_instance["pertest_command"]
     res["docker_image"] = f"{config.image_prefix}:{base_commit}"
-    res["docker_image_layers"] = medium_instance["docker_image_layers"]
+    res["docker_image_layers"] = deepcopy(medium_instance["docker_image_layers"])
     res["docker_image_layers"]["switch_commit_layer"] = commands
     return res, True
 
 def printer(iteration: int, groups: dict[str, Group], give_up_count: int):
     group_count = [len(group["before"])+len(group["medium"])+len(group["after"]) for group in groups.values()]
     print(
-        f"Iteration No.{iteration+1}/{MAX_ITERATION}. "
+        f"Iteration No.{iteration+1}/{MAX_ITERATION}. \n"
         f"{len(groups)} groups to be processed, "
         f"Max group size: {max(group_count)}, "
-        f"Min group size: {min(group_count)}. ",
+        f"Min group size: {min(group_count)}. \n"
         f"Num of failed instances: {give_up_count}. ",
         flush=True
     )
-
-def save_res(root: str, instances: list[SWEInstance]):
-    res_path = os.path.join(root, "result.jsonl")
-    with open(res_path, "w") as f:
-        for i in instances:
-            f.write(json.dumps(i)+"\n")
-    print(f"Saved {len(instances)} successful instances to {res_path}.", flush=True)
 
 def load_res(root: str) -> list[SWEInstance]:
     res_path = os.path.join(root, "result.jsonl")
@@ -358,87 +360,113 @@ def load_res(root: str) -> list[SWEInstance]:
     print(f"Load {len(instances)} successful instances from {res_path}.", flush=True)
     return instances
 
+def update_res(
+        root: str, 
+        prev_success_instances: list[SWEInstance], 
+        new_success_instances: list[SWEInstance] = []
+    ) -> None:
+    if new_success_instances:
+        prev_success_instances.extend(new_success_instances)
+    res_path = os.path.join(root, "result.jsonl")
+    with open(res_path, "w") as f:
+        for i in prev_success_instances:
+            f.write(json.dumps(i)+"\n")
+    print(f"Saved {len(prev_success_instances)} successful instances to {res_path}.", flush=True)
+    return
+
 def main(config_path: str):
-    all_success_instances: list[SWEInstance] = []
+
+    # define core vars that update through iterations
+    all_success_instances: list[SWEInstance]
+    all_success_ids: set[str]
     failed_once: set[str] = set()
     give_up: set[str] = set()
-    groups: dict[str, Group]
+    groups: dict[str, Group] # instance_id: instance_list
     todos: list[SWEInstance]
     todo_ids: list[str]
     
     config: Config = load_config(config_path)
     all_success_instances = load_res(config.workspace_root)
     all_success_ids = set([i["instance_id"] for i in all_success_instances])
-    with open(config.dataset, "r") as f:
+    with open(config.dataset) as f:
         dataset = [json.loads(line) for line in f]
     dataset = [i for i in dataset if i["instance_id"] not in all_success_ids]
 
     groups_by_repo: DefaultDict[str, list[SWEInstance]] = defaultdict(list)
     for instance in dataset:
         groups_by_repo[instance["repo"]].append(instance)
-    group_list = [split_commits_for_one_repo(repo_group) for repo_group in groups_by_repo.values()]
-    groups = {group["medium"]["instance_id"]: group for group in group_list}
-    todos = [group["medium"] for group in groups.values()]
+    group_list = [split_commits_for_one_repo(repo_group) for repo_group in groups_by_repo.values()] # temp var
+    groups = {group["medium"][0]["instance_id"]: group for group in group_list}
+    todos = [group["medium"][0] for group in groups.values()]
     todo_ids = [i["instance_id"] for i in todos]
 
     for iteration in range(MAX_ITERATION):
         printer(iteration, groups, len(give_up))
 
         success_repos = launch_one_round(config, todos, todo_ids)
-        all_success_instances += success_repos
-        success_ids = [i["instance_id"] for i in success_repos]
-        new_groups: dict[str, Group] = {}
-        for todo in [i for i in todos if i["instance_id"] not in success_ids]:
-            if (todo["instance_id"] not in failed_once):
-                failed_once.add(todo["instance_id"])
-                new_groups[todo["instance_id"]] = groups[todo["instance_id"]]
+        all_success_instances_at_same_commit: list[SWEInstance] = [] # temp var
+        for success_repo in success_repos:
+            all_success_instances_at_same_commit.append(success_repo)
+            if len(groups[success_repo["instance_id"]]["medium"]) > 1:
+                for instance in groups[success_repo["instance_id"]]["medium"][1:]:
+                    all_success_instances_at_same_commit.append(
+                        apply_res_for_same_commit(instance, success_repo)
+                    )
+        update_res(config.workspace_root, all_success_instances, all_success_instances_at_same_commit)
+        success_ids = [i["instance_id"] for i in success_repos] # temp var
+        new_groups: dict[str, Group] = {} # temp var
+        for failed_repo in [i for i in todos if i["instance_id"] not in success_ids]:
+            if (failed_repo["instance_id"] not in failed_once):
+                failed_once.add(failed_repo["instance_id"])
+                new_groups[failed_repo["instance_id"]] = groups[failed_repo["instance_id"]]
             else:
-                give_up.add(todo["instance_id"])
-                group = groups[todo["instance_id"]]
+                give_up.update([i["instance_id"] for i in groups[failed_repo["instance_id"]]["medium"]])
+                group = groups[failed_repo["instance_id"]]
                 if not (group["before"]+group["after"]):
                     continue
                 new_group = split_commits_for_one_repo(group["before"]+group["after"])
-                new_groups[new_group["medium"]["instance_id"]] = new_group
+                new_groups[new_group["medium"][0]["instance_id"]] = new_group
 
-        exec_tasks: dict[tuple[str, str], tuple[str, SWEInstance, bool, Config]] = {}
-        instance_group_mapping: dict[tuple[str, str], str] = {}
-        base_commit_instance_mapping: DefaultDict[tuple[str, str], list[SWEInstance]] = defaultdict(list)
+        exec_tasks: dict[tuple[str, str], tuple[str, SWEInstance, bool]] = {} # temp var
+        instance_group_mapping: dict[tuple[str, str], str] = {} # temp var
+        base_commit_instance_mapping: DefaultDict[tuple[str, str], list[SWEInstance]] = defaultdict(list)  # temp var
         for success_repo in success_repos:
             for is_after, instance in \
                 [(False, i) for i in groups[success_repo["instance_id"]]["before"]]+\
                 [(True, i) for i in groups[success_repo["instance_id"]]["after"]]:
-                if instance["base_commit"].strip() == success_repo["base_commit"].strip():
-                    all_success_instances.append(apply_res_for_same_commit(instance, success_repo))
-                    continue
-                exec_tasks[(instance["repo"], instance["base_commit"])] =(instance["base_commit"], success_repo, is_after, config)
+                exec_tasks[(instance["repo"], instance["base_commit"])] =(instance["base_commit"], success_repo, is_after)
                 instance_group_mapping[(instance["repo"], instance["base_commit"])] = success_repo["instance_id"]+str(is_after)
                 base_commit_instance_mapping[(instance["repo"], instance["base_commit"])].append(instance)
-        not_applicable_instances: DefaultDict[str, list[SWEInstance]] = defaultdict(list)
+        not_applicable_instances: DefaultDict[str, list[SWEInstance]] = defaultdict(list) # temp
         with ThreadPoolExecutor(max_workers=config.max_workers) as executor:
             results = executor.map(
-                lambda task: run_one_commit_test(task[0], task[1], task[2], task[3]),
+                lambda task: run_one_commit_test(task[0], task[1], task[2], config),
                 exec_tasks.values(),
             )
             for result, success in results:
                 repo_commit_index = (result["repo"], result["base_commit"])
                 if success:
+                    all_success_instances_at_same_commit: list[SWEInstance] = [] # temp var
                     for instance in base_commit_instance_mapping[repo_commit_index]:
-                        all_success_instances.append(apply_res_for_same_commit(instance, result))
+                        all_success_instances_at_same_commit.append(apply_res_for_same_commit(instance, result))
+                    update_res(config.workspace_root, all_success_instances, all_success_instances_at_same_commit)
                 else:
+                    # instances from the same repo before the success medium instance should be put into a new group
+                    # instances from the same repo after the success medium instance should be put into a new group
                     not_applicable_instances[
                         instance_group_mapping[repo_commit_index]
                     ].extend(base_commit_instance_mapping[repo_commit_index])
-        groups_list = [split_commits_for_one_repo(sub_group) for sub_group in not_applicable_instances.values()]
+        groups_list = [split_commits_for_one_repo(sub_group) for sub_group in not_applicable_instances.values()] # temp var
         for new_group in groups_list:
-            new_groups[new_group["medium"]["instance_id"]] = new_group
+            new_groups[new_group["medium"][0]["instance_id"]] = new_group
 
         groups = new_groups
-        todos = [group["medium"] for group in groups.values()]
+        todos = [group["medium"][0] for group in groups.values()]
         todo_ids = [i["instance_id"] for i in todos]
         if not todo_ids:
             break
 
-    save_res(config.workspace_root, all_success_instances)
+    update_res(config.workspace_root, all_success_instances)
 
     return
 
