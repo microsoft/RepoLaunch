@@ -26,7 +26,7 @@ class _ComparisonResponse:
 
 
 def test_split_uses_timestamp_ancestry_and_disk_cache(tmp_path, monkeypatch):
-    monkeypatch.setattr(adjacent_commit_run, "COMMIT_RELATIONSHIP_CACHE_DIR", tmp_path)
+    monkeypatch.setattr(adjacent_commit_run, "commit_relationship_cache_dir", tmp_path)
 
     instances = [
         _instance("new", "new-commit", "2026-05-01T00:00:00Z"),
@@ -80,7 +80,7 @@ def test_split_uses_timestamp_ancestry_and_disk_cache(tmp_path, monkeypatch):
 
 
 def test_split_validates_its_input(tmp_path, monkeypatch):
-    monkeypatch.setattr(adjacent_commit_run, "COMMIT_RELATIONSHIP_CACHE_DIR", tmp_path)
+    monkeypatch.setattr(adjacent_commit_run, "commit_relationship_cache_dir", tmp_path)
 
     with pytest.raises(ValueError, match="must not be empty"):
         adjacent_commit_run.split_commits_for_one_repo([])

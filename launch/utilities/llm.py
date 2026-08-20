@@ -16,6 +16,12 @@ logger = logging.getLogger(__name__)
 litellm.suppress_debug_info = True
 litellm.turn_off_message_logging = True
 
+SYSTEM_PROMPT = """
+You are a software engineer. You are interacting with a shell terminal. 
+Do not write commands that will kill the current shell process; otherwise if the shell process is killed, the current dialogue will be ended forcefully. For example, do not use `exit $EXIT_CODE` or `set -e` in your generated command. You should use the specified way in the action instruction below to perform each action or submit your result. 
+Also, the shell terminal is non-interactive -- do not write commands that will prompt user to input anything in the execution process. Any interactive command that requires user input during execution will be killed. You should write shell commands that can run without user input in the middle; for example, you should write a command like `apt-get install lsof -y` instead of `apt-get install lsof`. 
+"""
+
 def update_accumulative_cost(
         d: dict[Literal["input_tokens", "output_tokens", "cost_usd"], int|float],
         response: BaseMessage) -> None:
@@ -169,7 +175,11 @@ class LiteLLMModel:
         return payload
     
     def invoke(self, messages: List[BaseMessage]) -> AIMessage:
-        payload = [self._to_litellm_message(message) for message in messages]
+        payload: list[dict[str, str]] = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+        ] + [
+            self._to_litellm_message(message) for message in messages
+        ]
 
         if self.endpoint == "completion":
             content, input_tokens, output_tokens, total_tokens, cost = self.invoke_completion(payload)

@@ -6,12 +6,13 @@ python -m launch.scripts.adjacent_commit_run --config-path ...
 '''
 
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from datetime import datetime, timezone
 from functools import partial
 import os, json
 from pathlib import Path
+import shutil
 import tempfile
 import threading
 from typing import Literal, Optional, TypedDict, DefaultDict
@@ -26,7 +27,7 @@ from launch.utilities.config import Config, load_config
 from launch.scripts import collect
 
 MAX_ITERATION = 8
-COMMIT_RELATIONSHIP_CACHE_DIR = Path(__file__).resolve().parents[2] / ".cache" / "adjacent_commit_run"
+commit_relationship_cache_dir = Path(__file__).resolve().parents[2] / ".cache" / "adjacent_commit_run"
 TEST_COUNT_THRESHOLD_FOR_COMMITS_BEFORE = 0.80
 
 _commit_relationship_cache_lock = threading.Lock()
@@ -51,9 +52,9 @@ class Group(TypedDict):
     medium: list[SWEInstance]
     after: list[SWEInstance]
 
-def logger(config: Config, base_commit: str, text: str):
-    os.makedirs(os.path.join(config.workspace_root, "adjacent_commit_run_log"), exist_ok=True)
-    log_path = os.path.join(config.workspace_root, "adjacent_commit_run_log", f"{base_commit}.log")
+def logger(config: Config, repo: str, base_commit: str, epoch: int|str, text: str):
+    os.makedirs(os.path.join(config.workspace_root, "adjacent_commit_run_log", repo, base_commit), exist_ok=True)
+    log_path = os.path.join(config.workspace_root, "adjacent_commit_run_log", repo, base_commit, f"docker_round{epoch}.log")
     current_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     with open(log_path, "a") as f:
         f.write(
@@ -155,7 +156,8 @@ def split_commits_for_one_repo(instances: list[SWEInstance]) -> Group:
 def _commit_relationship_cache_path(repo: str) -> Path:
     # URL encoding keeps each repository in one file without filename
     # collisions or user-controlled subdirectories.
-    return COMMIT_RELATIONSHIP_CACHE_DIR / f"{quote(repo, safe='')}.json"
+    global commit_relationship_cache_dir
+    return commit_relationship_cache_dir / f"{quote(repo, safe='')}.json"
 
 
 def _load_commit_relationship_cache(repo: str) -> dict[str, dict[str, bool]]:
@@ -290,6 +292,9 @@ def run_one_commit_test(
     ) -> tuple[SWEInstance, bool] :
     success: bool = False
     commands = [
+        "git config --global user.email example@gmail.com",
+        "git config --global user.name haha",
+        f"git fetch origin {base_commit}",
         "git checkout -b wipcheckoutbackup",
         "git add -A",
         "git commit --no-verify -m 'temp'",
@@ -302,42 +307,83 @@ def run_one_commit_test(
     res: SWEInstance = {}
     res["repo"] = medium_instance["repo"]
     res["base_commit"] = base_commit
-    instance_logger = partial(logger, config=config, base_commit=base_commit)
+    medium_commit_short = medium_instance["base_commit"][:6]
+    instance_logger = partial(logger, config=config, repo=medium_instance["repo"], base_commit=base_commit, epoch=medium_commit_short)
+    status: dict[str, Literal['pass', 'fail', 'skip']] | None = None
+    os.makedirs(os.path.join(config.workspace_root, "adjacent_commit_run_log", medium_instance["repo"], base_commit), exist_ok=True)
 
-    container = SetupRuntime.from_launch_image(medium_instance["docker_image"], base_commit, config.platform, config.timeout)
-    for command in commands:
-        container.send_command(command)
-    container.send_command(" ; ".join(medium_instance["rebuild_cmds"]))
-    container.send_command(" ; ".join(medium_instance["test_cmds"]))
-    log = container.send_command(" ; ".join(medium_instance["print_cmds"])).output
-    status: dict[str, Literal['pass', 'fail', 'skip']] = run_parser(medium_instance["log_parser"], log)
-    del container
+    test_log_dir = os.path.join(config.workspace_root, "adjacent_commit_run_log", medium_instance["repo"], base_commit, f"test_status_round{medium_commit_short}.json")
+    if os.path.exists(test_log_dir):
+        with open(test_log_dir) as f:
+            content = f.read()
+        try:
+            status = json.loads(content)
+        except:
+            status = None
+    if status is not None:
+        instance_logger(text="Loaded existing test status from cached results.")
+    else:
+        container = SetupRuntime.from_launch_image(medium_instance["docker_image"], base_commit, config.platform, config.timeout)
+        for command in commands:
+            out = container.send_command(command).to_observation()
+            instance_logger(text=out)
+        out = container.send_command(" ; ".join(medium_instance["rebuild_cmds"])).to_observation()
+        instance_logger(text=out)
+        out = container.send_command(" ; ".join(medium_instance["test_cmds"])).to_observation()
+        instance_logger(text=out)
+        log = container.send_command(" ; ".join(medium_instance["print_cmds"])).output
+        instance_logger(text=log[:20000])
+        status = run_parser(medium_instance["log_parser"], log)
+        with open(test_log_dir, "w") as f:
+            json.dump(status, f, indent=True)
+        container.cleanup()
+        del container
 
-    if after_medium and len(status) >= len(medium_instance["test_status"]):
+    current_passed = len([k for k, v in status.items() if 'pass' in v.lower()])
+    medium_passed = len([k for k, v in medium_instance["test_status"].items() if 'pass' in v.lower()])
+    instance_logger(text=f"Current commit passed: {current_passed} tests. Ref medium commit passed: {medium_passed} tests.")
+    if after_medium and current_passed >= medium_passed:
         success = True
-    if (not after_medium) and len(status) >= int(len(medium_instance["test_status"])*TEST_COUNT_THRESHOLD_FOR_COMMITS_BEFORE):
+    if (not after_medium) and current_passed >= int(medium_passed*TEST_COUNT_THRESHOLD_FOR_COMMITS_BEFORE):
         success = True
+    instance_logger(text="Checkout success!" if success else "Checkout failed...")
+    print(medium_instance["repo"], "at", base_commit, ":", "Checkout success!" if success else "Checkout failed...", flush=True)
     if not success:
         return res, False
 
-    container = SetupRuntime.from_launch_image(medium_instance["docker_image"], base_commit, config.platform, config.timeout)
-    for command in commands:
-        out = container.send_command(command).to_observation()
-        instance_logger(text=out)
-    container.commit(image_name=config.image_prefix, tag=base_commit)
-    del container
-    res["rebuild_cmds"] = medium_instance["rebuild_cmds"]
-    res["test_cmds"] = medium_instance["test_cmds"]
-    res["print_cmds"] = medium_instance["print_cmds"]
-    res["log_parser"] = medium_instance["log_parser"]
-    res["test_status"] = status
-    if medium_instance.get("per_test_command_generator", False):
-        res["per_test_command_generator"] = medium_instance["per_test_command_generator"]
-    if medium_instance.get("pertest_command", False):
-        res["pertest_command"] = medium_instance["pertest_command"]
-    res["docker_image"] = f"{config.image_prefix}:{base_commit}"
-    res["docker_image_layers"] = deepcopy(medium_instance["docker_image_layers"])
-    res["docker_image_layers"]["switch_commit_layer"] = commands
+    result_dir = os.path.join(config.workspace_root, "adjacent_commit_run_log", medium_instance["repo"], base_commit, f"result_round{medium_commit_short}.json")
+    if os.path.exists(result_dir):
+        with open(result_dir) as f:
+            content = f.read()
+        try:
+            res = json.loads(content)
+        except:
+            pass
+    if len(res) < 5:
+        container = SetupRuntime.from_launch_image(medium_instance["docker_image"], base_commit, config.platform, config.timeout)
+        for command in commands:
+            out = container.send_command(command).to_observation()
+            instance_logger(text=out)
+        tag = medium_instance["repo"].replace("/", "").replace("-", "").replace("_", "").lower() + base_commit
+        container.commit(image_name=config.image_prefix, tag=tag)
+        instance_logger(text=f"Image {config.image_prefix}:{tag} committed successfully!")
+        container.cleanup()
+        del container
+
+        res["rebuild_cmds"] = medium_instance["rebuild_cmds"]
+        res["test_cmds"] = medium_instance["test_cmds"]
+        res["print_cmds"] = medium_instance["print_cmds"]
+        res["log_parser"] = medium_instance["log_parser"]
+        res["test_status"] = status
+        if medium_instance.get("per_test_command_generator", False):
+            res["per_test_command_generator"] = medium_instance["per_test_command_generator"]
+        if medium_instance.get("pertest_command", False):
+            res["pertest_command"] = medium_instance["pertest_command"]
+        res["docker_image"] = f"{config.image_prefix}:{tag}"
+        res["docker_image_layers"] = deepcopy(medium_instance["docker_image_layers"])
+        res["docker_image_layers"]["switch_commit_layer"] = commands
+        with open(result_dir, "w") as f:
+            json.dump(res, f, indent=True)
     return res, True
 
 def printer(iteration: int, groups: dict[str, Group], give_up_count: int):
@@ -350,15 +396,6 @@ def printer(iteration: int, groups: dict[str, Group], give_up_count: int):
         f"Num of failed instances: {give_up_count}. ",
         flush=True
     )
-
-def load_res(root: str) -> list[SWEInstance]:
-    res_path = os.path.join(root, "result.jsonl")
-    if not os.path.exists(res_path):
-        return []
-    with open(res_path) as f:
-        instances = [json.loads(i) for i in f]
-    print(f"Load {len(instances)} successful instances from {res_path}.", flush=True)
-    return instances
 
 def update_res(
         root: str, 
@@ -377,8 +414,7 @@ def update_res(
 def main(config_path: str):
 
     # define core vars that update through iterations
-    all_success_instances: list[SWEInstance]
-    all_success_ids: set[str]
+    all_success_instances: list[SWEInstance] = []
     failed_once: set[str] = set()
     give_up: set[str] = set()
     groups: dict[str, Group] # instance_id: instance_list
@@ -386,11 +422,18 @@ def main(config_path: str):
     todo_ids: list[str]
     
     config: Config = load_config(config_path)
-    all_success_instances = load_res(config.workspace_root)
-    all_success_ids = set([i["instance_id"] for i in all_success_instances])
+    assert config.mode.get("organize", False), '''The adjacent commit run script must get test status to work, so the organize stage is required. In your config file, set 
+```
+"mode": {
+    "setup": true,
+    "organize": true
+}
+```
+'''
     with open(config.dataset) as f:
         dataset = [json.loads(line) for line in f]
-    dataset = [i for i in dataset if i["instance_id"] not in all_success_ids]
+    global commit_relationship_cache_dir
+    commit_relationship_cache_dir = Path(config.workspace_root) / ".cache" / "adjacent_commit_run"
 
     groups_by_repo: DefaultDict[str, list[SWEInstance]] = defaultdict(list)
     for instance in dataset:
@@ -416,12 +459,16 @@ def main(config_path: str):
         success_ids = [i["instance_id"] for i in success_repos] # temp var
         new_groups: dict[str, Group] = {} # temp var
         for failed_repo in [i for i in todos if i["instance_id"] not in success_ids]:
-            if (failed_repo["instance_id"] not in failed_once):
-                failed_once.add(failed_repo["instance_id"])
-                new_groups[failed_repo["instance_id"]] = groups[failed_repo["instance_id"]]
+            failed_instance_id = failed_repo["instance_id"]
+            if (failed_instance_id not in failed_once):
+                failed_once.add(failed_instance_id)
+                new_groups[failed_instance_id] = groups[failed_instance_id]
+                shutil.rmtree(os.path.join(config.workspace_root, "playground", failed_instance_id))
+                print(f"Instance {failed_instance_id} failed once. Will retry next iteration.")
             else:
-                give_up.update([i["instance_id"] for i in groups[failed_repo["instance_id"]]["medium"]])
-                group = groups[failed_repo["instance_id"]]
+                give_up.update([i["instance_id"] for i in groups[failed_instance_id]["medium"]])
+                print(f"Instance {failed_instance_id} failed twice. Have to give up this instance and try other base commits (if any) for this repo.")
+                group = groups[failed_instance_id]
                 if not (group["before"]+group["after"]):
                     continue
                 new_group = split_commits_for_one_repo(group["before"]+group["after"])
@@ -439,11 +486,12 @@ def main(config_path: str):
                 base_commit_instance_mapping[(instance["repo"], instance["base_commit"])].append(instance)
         not_applicable_instances: DefaultDict[str, list[SWEInstance]] = defaultdict(list) # temp
         with ThreadPoolExecutor(max_workers=config.max_workers) as executor:
-            results = executor.map(
-                lambda task: run_one_commit_test(task[0], task[1], task[2], config),
-                exec_tasks.values(),
-            )
-            for result, success in results:
+            futures = [
+                executor.submit(run_one_commit_test, task[0], task[1], task[2], config)
+                for task in exec_tasks.values()
+            ]
+            for future in as_completed(futures):
+                result, success = future.result()
                 repo_commit_index = (result["repo"], result["base_commit"])
                 if success:
                     all_success_instances_at_same_commit: list[SWEInstance] = [] # temp var
