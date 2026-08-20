@@ -7,6 +7,11 @@ This document introduces our memory-aware, self-evolving solution for RepoLaunch
 If your dataset to be launched contains multiple commits from the same repo, we suggest you using the below script to launch your dataset instead of using the simple `launch data/examples/config.json`:
 
 ```bash
+export OPENAI_API_KEY=... # for linux
+$env:OPENAI_API_KEY=... # for windows
+export TAVILY_API_KEY=... # for linux
+$env:TAVILY_API_KEY=... # for windows
+
 export GITHUB_TOKEN=... # for linux
 $env:GITHUB_TOKEN=...   # for windows
 python -m launch.scripts.adjacent_commit_run --config-path data/examples/config.json
