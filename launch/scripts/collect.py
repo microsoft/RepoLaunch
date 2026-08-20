@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal, Optional, Any
 from fire import Fire
 
 def main(
@@ -8,7 +8,7 @@ def main(
     platform: Literal["linux", "windows"] = "linux",
     step: Literal["setup", "organize"] = "setup",
     instance_ids: Optional[list[str]] = None
-):
+) -> list[dict[str, Any]]:
     workspace = Path(workspace)
     playground = workspace / "playground"
     output_jsonl = workspace / f"{step}.jsonl"
@@ -41,19 +41,16 @@ def main(
             **instance,
             "docker_image_layers": result.get("docker_image_layers", {}),
             "setup_cmds": result.get("setup_commands", []),
-            "test_cmds": result.get("test_commands", []),
-            "print_cmds": result.get("print_commands", []),
-            "log_parser": result.get("log_parser", "pytest"),
+            "test_cmds": result["test_commands"],
             "docker_image": result.get("docker_image", f"karinali20011210/migbench:{instance["instance_id"]}_{platform}"),
         }
-        if result.get("rebuild_commands", ""):
+        if step == "organize":
             swe_instance["rebuild_cmds"] = result["rebuild_commands"]
-        if result.get("test_status", ""):
+            swe_instance["print_cmds"] = result["print_commands"]
             swe_instance["test_status"] = result["test_status"]
+            swe_instance["log_parser"] = result["log_parser"]
         if result.get("pertest_command", ""):
             swe_instance["pertest_command"] = result["pertest_command"]
-        if result.get("log_parser", ""):
-            swe_instance["log_parser"] = result["log_parser"]
         if result.get("unittest_generator", ""):
             swe_instance["per_test_command_generator"] = result["unittest_generator"]
 
@@ -63,6 +60,7 @@ def main(
         for instance in swe_instances:
             f.write(json.dumps(instance) + "\n")
     print(f"Saved {len(swe_instances)} instances to {output_jsonl}")
+    return swe_instances
 
 if __name__ == "__main__":
     Fire(main)

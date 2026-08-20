@@ -24,7 +24,7 @@ RepoLaunch now supports:
 
 ## Notifications
 
-**[29/Apr/2026]** Add Android platform support. The Android images are built from Linux arch images, which can run on Linux docker and Docker Desktop.
+**[20/Aug/2026]** Proposed the memory-aware solution to reuse existing successful results of RepoLaunch to build&test the different commits of the same repo. See [Development.md](docs/Development.md#reuse-repolaunch-results-for-different-commits-of-the-same-repo). This solution is especially useful to create multiple task instances from different issues of the same repo. Experiments on building executable envs for 856 GitHub issues from 93 repos show >= 98% success, with 82% savings on LM API cost and 78% savings on Docker image storage space. 
 
 **[28/Mar/2026]**
 

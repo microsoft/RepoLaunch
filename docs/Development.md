@@ -39,6 +39,10 @@ launch data/examples/config.json
 # equivalently: python -m launch.run --config-path data/examples/config.json
 ```
 
+### Reuse RepoLaunch results for different commits of the same repo
+
+If your dataset to be launched contains multiple commits from the same repo, we suggest you referring to the solution in [Development-agent-memory.md](Development-agent-memory.md#reuse-repolaunch-results-for-different-commits-of-the-same-repo) to launch your dataset instead of using `launch data/examples/config.json` directly.
+
 ## Input
 
 For the input data used to set up the environment, we require the following fields:

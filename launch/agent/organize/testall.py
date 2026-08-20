@@ -2,7 +2,6 @@
 Environment verification agent for testing repository setup correctness.
 """
 import json
-import time
 from typing import Any, Literal
 
 from langchain.schema import HumanMessage, SystemMessage
@@ -125,7 +124,7 @@ You need to finish in {steps} steps.
 
 
 class VerifyAction(BaseModel):
-    """
+    r"""
 Command: run a command in the shell, reply with following format, your command should not require sudo/admin privilage or interactive input:
     <command>...</command>
     e.g. <command>pytest -rA</command>

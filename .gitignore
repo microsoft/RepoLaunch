@@ -8,6 +8,7 @@ build**
 log**
 **egg-info**
 **__pycache__
+.cache/
 
 #key
 **tokens
@@ -18,5 +19,4 @@ cloudgpt**
 
 #data
 data**
-
 
