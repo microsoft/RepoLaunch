@@ -71,7 +71,7 @@ Please refer to [CONTRIBUTING.md::Future Directions to Study](./CONTRIBUTING.md#
 ```bibtex
 @article{li2026repolaunch,
   title={RepoLaunch: Automating Build and Management of Code Repositories across Languages and Platforms},
-  author={Li, Kenan and Li, Rongzhi and Zhang, Linghao and Jin, Qirui and Zhu, Liao and Huang, Xiaosong and Zhang, Geng and Zhang, Yikai and He, Shilin and Xie, Chengxing and others},
+  author={Kenan Li and Rongzhi Li and Linghao Zhang and Qirui Jin and Liao Zhu and Xiaosong Huang and Geng Zhang and Yikai Zhang and Shilin He and Chengxing Xie and Xin Zhang and Zijian Jin and Bowen Li and Chaoyun Zhang and Yu Kang and Yufan Huang and Elsie Nallipogu and Saravan Rajmohan and Qingwei Lin and Dongmei Zhang},
   journal={arXiv preprint arXiv:2603.05026},
   year={2026}
 }
