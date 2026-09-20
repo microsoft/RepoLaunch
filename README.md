@@ -1,12 +1,9 @@
 <h1 align="center"> 🚀 RepoLaunch Agent </h1>
 
 <p align="center">
-  <a href="https://arxiv.org/abs/2603.05026">
-        <img alt="paper" src="https://img.shields.io/badge/ArXiv-%23B31B1B?style=for-the-badge&logo=arXiv">
-  </a>
-  <a href="./LICENSE">
-        <img alt="License" src="https://img.shields.io/github/license/SWE-bench/SWE-bench?style=for-the-badge">
-  </a>
+  <a href="https://arxiv.org/abs/2603.05026"><img alt="paper" src="https://img.shields.io/badge/ArXiv-%23B31B1B?style=for-the-badge&logo=arXiv"></a>&nbsp;
+  <a href="https://repolaunch.github.io/"><img alt="Website" src="https://img.shields.io/badge/%20-WEBPAGE-D2B46F?style=for-the-badge&amp;logo=readthedocs&amp;logoColor=white&amp;labelColor=343A40"></a>&nbsp;
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/SWE-bench/SWE-bench?style=for-the-badge"></a>
 </p>
 
 <p align="center">
