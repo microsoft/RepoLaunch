@@ -79,7 +79,7 @@ jobs:
         run: |
           $version = "v0.34.1"
           $url = "https://github.com/docker/buildx/releases/download/$version/buildx-$version.windows-amd64.exe"
-          $dest = Join-Path $env:ProgramData "Docker\cli-plugins"
+          $dest = Join-Path $env:USERPROFILE ".docker\cli-plugins"
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
           Invoke-WebRequest -Uri $url -OutFile (Join-Path $dest "docker-buildx.exe")
           docker buildx version
