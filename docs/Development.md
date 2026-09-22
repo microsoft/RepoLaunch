@@ -2,15 +2,28 @@
 
 ## Dependencies
 
-Pre-install: Git, Python>=3.12, Docker
+### Pre-installation
+
+You need to pre-install: Git, Python>=3.12, Docker
 
 The docker dependency means running on containerized cluster pods is **NOT** feasible. Usually running one instances takes 4 GPUs with 16GB RAM, and the large repos like ClickHouse takes even 10 CPUs and 64GB RAM... The disk I/O rate is also critical for docker commit operations, so SSD (>= 1TB) disk is always preferred. In a word, **the performance of your machine directly determines the success rate**.
 
 Now RepoLaunch supports Linux, Windows and Android build. Android images are built from Linux images, so the settings are the same as Linux. Linux images and Android images can run on linux docker and Docker Desktop (windows/macos). 
 For helpers to run RepoLaunch on Windows container, see [Development-Windows.md](./Development-Windows.md)
 
+### Install from source
 ```shell
+git clone https://github.com/microsoft/RepoLaunch
+cd RepoLaunch
 pip install -e .
+```
+
+### Install from PYPI
+```shell
+pip install repolaunch
+# To check if installation is ok
+python -c "from launch import api; print(api.__file__)" 
+# [Out] venv_path/lib/python3.12/site-packages/launch/api.py
 ```
 
 ## Run RepoLaunch

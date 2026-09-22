@@ -1,5 +1,6 @@
 from typing import Any, Literal
-from launch.core.runtime import CommandResult, SetupRuntime
+from launch.core.platforms.base import CommandResult
+from launch.core.runtime import SetupRuntime
 from launch.scripts.parser import run_parser
 
 TestStatus = Literal['pass', 'fail', 'skip']

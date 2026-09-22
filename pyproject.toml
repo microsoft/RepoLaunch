@@ -1,6 +1,6 @@
 [project]
-name = "launch"
-version = "0.1.0"
+name = "repolaunch"
+version = "1.4.3"
 description = "RepoLaunch"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -32,11 +32,15 @@ test = [
 launch = "launch.run:main"
 
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["launch"]
+[tool.setuptools.packages.find]
+include = ["launch", "launch.*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+"launch.utilities" = ["dockerfiles/**/Dockerfile"]
 
 [tool.pytest.ini_options]
 markers = [
