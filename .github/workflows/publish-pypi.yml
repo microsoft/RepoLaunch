@@ -40,8 +40,15 @@ jobs:
 
           version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
           tag = os.environ["RELEASE_TAG"]
-          if tag not in (version, f"v{version}"):
-              raise SystemExit(f"Release tag {tag!r} must be {version!r} or 'v{version}'.")
+          tag_version = tag.removeprefix("v")
+          # Allow descriptive release tags while keeping the package version authoritative.
+          suffix = tag_version.removeprefix(f"{version}-")
+          has_description = tag_version.startswith(f"{version}-") and bool(suffix)
+          if tag_version != version and not has_description:
+              raise SystemExit(
+                  f"Release tag {tag!r} must match package version {version!r}, "
+                  "with an optional 'v' prefix and '-description' suffix."
+              )
           PY
 
       - name: Build and check distributions
