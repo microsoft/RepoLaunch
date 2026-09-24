@@ -21,6 +21,20 @@ from typing import Any
 import queue
 import uuid
 
+
+# Go integration tests use ``fakerepo`` as a deliberately unreachable local
+# registry. Keep it off the evaluator's outbound proxy so the test observes
+# the expected direct socket error instead of a proxy-generated EOF.
+DEFAULT_WINDOWS_CONTAINER_NO_PROXY = "localhost,127.0.0.1,::1,fakerepo"
+
+
+def get_windows_container_no_proxy() -> str:
+    """Return the container proxy bypass list, honoring an explicit override."""
+    return os.environ.get(
+        "SWE_WINDOWS_CONTAINER_NO_PROXY", DEFAULT_WINDOWS_CONTAINER_NO_PROXY
+    )
+
+
 import docker
 from docker.models.containers import Container
 
@@ -159,6 +173,14 @@ function prompt {
             detach=True,
             environment={
                 "TERM": "xterm-mono",
+                # The proxy is optional. When enabled, ensure local test
+                # endpoints still use direct networking semantics.
+                **({
+                    "HTTP_PROXY": os.environ.get("SWE_WINDOWS_CONTAINER_PROXY"),
+                    "HTTPS_PROXY": os.environ.get("SWE_WINDOWS_CONTAINER_PROXY"),
+                    "ALL_PROXY": os.environ.get("SWE_WINDOWS_CONTAINER_PROXY"),
+                    "NO_PROXY": get_windows_container_no_proxy(),
+                } if os.environ.get("SWE_WINDOWS_CONTAINER_PROXY") else {}),
             },
             working_dir=working_dir,
             extra_hosts=extra_hosts,
