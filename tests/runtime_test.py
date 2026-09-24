@@ -49,7 +49,10 @@ from docker.errors import APIError, DockerException, ImageNotFound
 
 from launch.core.runtime import SetupRuntime
 from launch.core.platforms.linux import LinuxRuntime
-from launch.core.platforms.windows import WindowsRuntime
+from launch.core.platforms.windows import (
+    WindowsRuntime,
+    build_windows_repo_clone_command,
+)
 from launch.core.platforms.android import AndroidRuntime
 #from launch.core.platforms.macos import MacosRuntime
 
@@ -64,6 +67,14 @@ PATCH_CONTENT = """diff --git a/log.out b/log.out\nnew file mode 100644\nindex 0
 
 class FakeSocket:
     pass
+
+
+def test_windows_repo_clone_enables_git_symlinks():
+    command = build_windows_repo_clone_command(
+        "https://github.com/example/project.git", "0123456789abcdef"
+    )
+    assert "git config --global core.symlinks true" in command
+    assert "git reset --hard 0123456789abcdef" in command
 
 
 class FakeContainer:
