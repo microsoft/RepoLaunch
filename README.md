@@ -22,6 +22,7 @@ RepoLaunch now supports:
 - Building on linux images, android images, windows images.
 
 ## Notifications
+**[25/Sep/2026]** Congratulations! RepoLaunch is accepted as a poster paper by **NeurIPS 2026 Main Conference**!
 
 **[20/Aug/2026]** Proposed the memory-aware solution to reuse existing successful results of RepoLaunch to build&test the different commits of the same repo. See [Development.md](https://github.com/microsoft/RepoLaunch/blob/main/docs/Development.md#reuse-repolaunch-results-for-different-commits-of-the-same-repo). This solution is especially useful to create multiple task instances from different issues of the same repo. Experiments on building executable envs for 856 GitHub issues from 93 repos show >= 98% success, with 82% savings on LM API cost and 78% savings on Docker image storage space.
 
