@@ -25,6 +25,17 @@ import docker
 from docker.models.containers import Container
 
 
+def build_windows_repo_clone_command(url: str, base_commit: str) -> str:
+    """Build the Windows checkout command with Git symlink support enabled."""
+    return (
+        'git config --global --add safe.directory "C:\\testbed"; '
+        'git config --global core.symlinks true; '
+        'git init "C:\\testbed"; '
+        f'cd "C:\\testbed"; git remote add origin {url}; '
+        f'git fetch --depth 1 origin {base_commit}; git reset --hard {base_commit}'
+    )
+
+
 class WindowsRuntime(LinuxRuntime):
 
     def __init__(
@@ -289,9 +300,7 @@ if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) {
   if (Test-Path $gitCmd) { $env:PATH = "$gitCmd;$gitBin;$env:PATH" }
 }
 '''
-        repo_clone_cmd = r'git config --global --add safe.directory "C:\testbed"; git init "C:\testbed"; cd "C:\testbed"; git remote add origin {url}; git fetch --depth 1 origin {base}; git reset --hard {base}'.format(
-                url=url, base=base_commit
-            )
+        repo_clone_cmd = build_windows_repo_clone_command(url, base_commit)
         session.preparation_commands.extend([git_install_cmd, repo_clone_cmd])
 
         # 2) Ensure Git is installed (Chocolatey if possible; fallback to official silent installer).
