@@ -49,7 +49,10 @@ from docker.errors import APIError, DockerException, ImageNotFound
 
 from launch.core.runtime import SetupRuntime
 from launch.core.platforms.linux import LinuxRuntime
-from launch.core.platforms.windows import WindowsRuntime
+from launch.core.platforms.windows import (
+    WindowsRuntime,
+    build_windows_git_path_command,
+)
 from launch.core.platforms.android import AndroidRuntime
 #from launch.core.platforms.macos import MacosRuntime
 
@@ -64,6 +67,12 @@ PATCH_CONTENT = """diff --git a/log.out b/log.out\nnew file mode 100644\nindex 0
 
 class FakeSocket:
     pass
+
+
+def test_windows_git_path_command_includes_usr_bin():
+    command = build_windows_git_path_command()
+    assert r"$gitUsr = 'C:\Program Files\Git\usr\bin'" in command
+    assert "$gitUsr;$env:PATH" in command
 
 
 class FakeContainer:
