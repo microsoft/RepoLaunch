@@ -49,7 +49,11 @@ from docker.errors import APIError, DockerException, ImageNotFound
 
 from launch.core.runtime import SetupRuntime
 from launch.core.platforms.linux import LinuxRuntime
-from launch.core.platforms.windows import WindowsRuntime
+from launch.core.platforms.windows import (
+    DEFAULT_WINDOWS_CONTAINER_NO_PROXY,
+    WindowsRuntime,
+    get_windows_container_no_proxy,
+)
 from launch.core.platforms.android import AndroidRuntime
 #from launch.core.platforms.macos import MacosRuntime
 
@@ -64,6 +68,15 @@ PATCH_CONTENT = """diff --git a/log.out b/log.out\nnew file mode 100644\nindex 0
 
 class FakeSocket:
     pass
+
+
+def test_windows_container_no_proxy_default_and_override(monkeypatch):
+    monkeypatch.delenv("SWE_WINDOWS_CONTAINER_NO_PROXY", raising=False)
+    assert get_windows_container_no_proxy() == DEFAULT_WINDOWS_CONTAINER_NO_PROXY
+    assert "fakerepo" in DEFAULT_WINDOWS_CONTAINER_NO_PROXY.split(",")
+
+    monkeypatch.setenv("SWE_WINDOWS_CONTAINER_NO_PROXY", "custom.local")
+    assert get_windows_container_no_proxy() == "custom.local"
 
 
 class FakeContainer:
