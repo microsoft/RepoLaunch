@@ -25,6 +25,14 @@ import docker
 from docker.models.containers import Container
 
 
+def build_windows_git_path_command() -> str:
+    """Build the PATH update used after installing Git for Windows."""
+    return r'''$gitCmd = 'C:\Program Files\Git\cmd'
+$gitBin = 'C:\Program Files\Git\bin'
+$gitUsr = 'C:\Program Files\Git\usr\bin'
+if (Test-Path $gitCmd) { $env:PATH = "$gitCmd;$gitBin;$gitUsr;$env:PATH" }'''
+
+
 class WindowsRuntime(LinuxRuntime):
 
     def __init__(
@@ -289,6 +297,9 @@ if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) {
   if (Test-Path $gitCmd) { $env:PATH = "$gitCmd;$gitBin;$env:PATH" }
 }
 '''
+        # Git for Windows keeps cygpath in usr/bin. Add it unconditionally so
+        # preinstalled Git images get the same PATH as newly installed Git.
+        git_install_cmd += "\n" + build_windows_git_path_command()
         repo_clone_cmd = r'git config --global --add safe.directory "C:\testbed"; git init "C:\testbed"; cd "C:\testbed"; git remote add origin {url}; git fetch --depth 1 origin {base}; git reset --hard {base}'.format(
                 url=url, base=base_commit
             )
