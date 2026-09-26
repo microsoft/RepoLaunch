@@ -49,7 +49,11 @@ from docker.errors import APIError, DockerException, ImageNotFound
 
 from launch.core.runtime import SetupRuntime
 from launch.core.platforms.linux import LinuxRuntime
-from launch.core.platforms.windows import WindowsRuntime
+from launch.core.platforms.windows import (
+    DEFAULT_WINDOWS_CONTAINER_NO_PROXY,
+    WindowsRuntime,
+    get_windows_container_no_proxy,
+)
 from launch.core.platforms.android import AndroidRuntime
 #from launch.core.platforms.macos import MacosRuntime
 

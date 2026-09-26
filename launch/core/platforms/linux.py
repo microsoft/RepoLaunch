@@ -17,6 +17,7 @@ from launch.core.platforms.base import (
 )
 
 import os, json
+import posixpath
 from typing import Any, Optional
 import queue
 import threading
@@ -205,9 +206,15 @@ class LinuxRuntime(BaseRuntime):
 
         filename = f"{uuid.uuid4()}.diff"
         hostpath = os.path.join(self.mnt_host, filename)
-        with open(hostpath, "w") as f:
+        # Keep patch files LF-only when the evaluator runs on Windows;
+        # otherwise git inside the Linux container receives CRLF hunks.
+        with open(hostpath, "w", encoding="utf-8", newline="\n") as f:
             f.write(patch)
-        containerpath =  os.path.join(self.mnt_container, filename)
+        # Container paths are Linux/POSIX paths even when the evaluator is
+        # launched from Windows.  os.path.join would use backslashes on
+        # Windows and turn /mnt_tmp/<file> into /mnt_tmp\<file>, which bash
+        # interprets as /mnt_tmp<file>.  Use posixpath for in-container paths.
+        containerpath = posixpath.join(self.mnt_container, filename)
         
         cmd = f"""git apply --reject  --whitespace=nowarn  {containerpath} """
         res = self.send_command(cmd)
