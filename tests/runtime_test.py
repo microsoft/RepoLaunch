@@ -41,6 +41,7 @@ index 0000000..7a754f4
 
 import os
 import platform as host_platform
+import tempfile
 import warnings
 
 import docker
@@ -82,6 +83,55 @@ class FakeContainer:
 
 def no_command_result(self, command, timeout=None):
     return None
+
+
+class FakePatchMetadata:
+    def __init__(self, exit_code=0):
+        self.exit_code = exit_code
+
+
+class FakePatchResult:
+    def __init__(self, exit_code=0):
+        self.metadata = FakePatchMetadata(exit_code)
+        self.output = ""
+
+
+class PatchProbeRuntime(LinuxRuntime):
+    def __init__(self, platform_name):
+        self.platform = platform_name
+        self.mnt_host = tempfile.mkdtemp()
+        self.mnt_container = r"C:\\mnt_tmp" if platform_name == "windows" else "/mnt_tmp"
+        self.stopped = False
+        self.commands = []
+
+    def send_command(self, command, timeout=None):
+        self.commands.append(command)
+        return FakePatchResult()
+
+
+def test_apply_patch_is_whitespace_tolerant_only_on_windows():
+    patch = "diff --git a/a b/a\\r\\n--- a/a\\r\\n+++ b/a\\r\\n"
+
+    class WindowsPatchProbeRuntime(WindowsRuntime):
+        def __init__(self):
+            self.platform = "windows"
+            self.mnt_host = tempfile.mkdtemp()
+            self.mnt_container = r"C:\\mnt_tmp"
+            self.stopped = False
+            self.commands = []
+
+        def send_command(self, command, timeout=None):
+            self.commands.append(command)
+            return FakePatchResult()
+
+    windows_runtime = WindowsPatchProbeRuntime()
+    assert windows_runtime.apply_patch(patch) is True
+    assert "--ignore-space-change --ignore-whitespace" in windows_runtime.commands[0]
+
+    linux_runtime = PatchProbeRuntime("linux")
+    assert linux_runtime.apply_patch(patch) is True
+    assert "--ignore-space-change" not in linux_runtime.commands[0]
+    assert "--ignore-whitespace" not in linux_runtime.commands[0]
 
 
 @pytest.fixture

@@ -121,6 +121,39 @@ function prompt {
 
         return CommandResult(output=output, metadata=fallback_metadata)
 
+    def apply_patch(self, patch: str, verbose: bool = False) -> bool:
+        """Apply patches with Windows-only whitespace drift tolerance.
+
+        WindowsRuntime overrides the inherited Linux implementation, so the
+        platform-specific flags must be present here as well as in the base
+        runtime. Linux remains strict through LinuxRuntime.apply_patch.
+        """
+        output_temp = "\n\n<<<<<<PATCH FAILED TO APPLY CLEANLY\n{out}\n>>>>>>\n\n"
+        filename = f"{uuid.uuid4()}.diff"
+        hostpath = os.path.join(self.mnt_host, filename)
+        with open(hostpath, "w") as fh:
+            fh.write(patch)
+        containerpath = os.path.join(self.mnt_container, filename)
+        try:
+            cmd = (
+                f"git apply --reject --ignore-space-change --ignore-whitespace "
+                f"--whitespace=nowarn {containerpath}"
+            )
+            res = self.send_command(cmd)
+            self.send_command(f"del /f /q {containerpath}")
+            if int(res.metadata.exit_code) == 0:
+                if verbose:
+                    print(f"{cmd} ---- Patch applied Successfully!", flush=True)
+                return True
+            if verbose:
+                print(output_temp.format(out=res.output), flush=True)
+            return False
+        finally:
+            try:
+                os.remove(hostpath)
+            except OSError:
+                pass
+
     @classmethod
     def _start_container(
         cls,

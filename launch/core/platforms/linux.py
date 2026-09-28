@@ -209,7 +209,11 @@ class LinuxRuntime(BaseRuntime):
             f.write(patch)
         containerpath =  os.path.join(self.mnt_container, filename)
         
-        cmd = f"""git apply --reject  --whitespace=nowarn  {containerpath} """
+        # Native Windows images may have whitespace-only source drift in
+        # generated files. Tolerate that drift only for Windows; Linux keeps
+        # strict patch matching so unrelated mismatches remain visible.
+        apply_flags = "--ignore-space-change --ignore-whitespace " if self.platform == "windows" else ""
+        cmd = f"git apply --reject {apply_flags}--whitespace=nowarn {containerpath}"
         res = self.send_command(cmd)
         self.send_command(f"rm {containerpath}")
         if int(res.metadata.exit_code) == 0:
