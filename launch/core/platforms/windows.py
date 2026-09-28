@@ -115,6 +115,20 @@ function prompt {
             kill_metadata.exit_code = TIMEOUT_EXIT_CODE
             return CommandResult(output=output, metadata=kill_metadata)
 
+        # If Ctrl-C did not produce a prompt, the command may still own the
+        # container's console (for example a compiler that ignores console
+        # interrupts). Do not leave a live process behind while reporting a
+        # timeout. Killing and removing this isolated evaluation container is
+        # the only reliable cancellation primitive available through the
+        # Docker SDK for a Windows exec in this runtime.
+        try:
+            self.container.kill()
+        finally:
+            try:
+                self.container.remove(force=True)
+            finally:
+                self.stopped = True
+
         fallback_metadata = CmdOutputMetadata(
             exit_code=TIMEOUT_EXIT_CODE,
         )
