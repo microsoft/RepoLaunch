@@ -194,6 +194,18 @@ class LinuxRuntime(BaseRuntime):
             kill_metadata.exit_code = TIMEOUT_EXIT_CODE
             return CommandResult(output=output, metadata=kill_metadata)
 
+        # If Ctrl-C did not produce a prompt, the timed-out foreground process
+        # may still be running in this isolated evaluation container. Do not
+        # report a timeout while leaving that process alive: terminate the
+        # container so the command has a reliable cancellation boundary.
+        try:
+            self.container.kill()
+        finally:
+            try:
+                self.container.remove(force=True)
+            finally:
+                self.stopped = True
+
         fallback_metadata = CmdOutputMetadata(
             exit_code=TIMEOUT_EXIT_CODE,
         )
