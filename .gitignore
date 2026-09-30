@@ -20,3 +20,14 @@ cloudgpt**
 #data
 data**
 
+# Change2Task local runtime state
+methods/change2task/.env
+methods/change2task/.venv/
+methods/change2task/.change2task/
+methods/change2task/dist/
+methods/change2task/.pytest_cache/
+methods/change2task/.ruff_cache/
+
+# Required Change2Task modules shadowed by the broad build** / log** rules above.
+!methods/change2task/src/pr_injector/cli/build_case_cmd.py
+!methods/change2task/src/pr_injector/core/logging.py

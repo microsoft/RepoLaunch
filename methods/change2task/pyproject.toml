@@ -1,0 +1,60 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "change2task"
+version = "0.1.0"
+description = "Convert historical repository changes into executable coding-agent tasks"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = [
+    "coding-agents",
+    "repository-history",
+    "software-engineering",
+    "task-construction",
+]
+dependencies = [
+    "pydantic>=2.0,<3.0",
+    "pydantic-settings>=2.0,<3.0",
+    "rich>=13.0,<15.0",
+    "structlog>=24.0,<26.0",
+    "typer>=0.12,<1.0",
+    "unidiff>=0.7,<1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+change2task = "pr_injector.cli.app:app"
+
+[project.urls]
+Paper = "https://arxiv.org/abs/2607.28591"
+Repository = "https://github.com/microsoft/RepoLaunch/tree/change2task/methods/change2task"
+
+[tool.hatch.build]
+# RepoLaunch's root .gitignore contains broad build** and log** patterns.
+# The method package intentionally includes build_case_cmd.py and logging.py.
+ignore-vcs = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pr_injector"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]

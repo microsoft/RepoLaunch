@@ -1,0 +1,309 @@
+{
+  "$defs": {
+    "CheckKind": {
+      "enum": [
+        "target",
+        "regression",
+        "syntax",
+        "build",
+        "scope"
+      ],
+      "title": "CheckKind",
+      "type": "string"
+    },
+    "CheckSpec": {
+      "additionalProperties": false,
+      "description": "One executable target or protected regression check.",
+      "properties": {
+        "check_id": {
+          "title": "Check Id",
+          "type": "string"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Command"
+        },
+        "cwd": {
+          "default": ".",
+          "title": "Cwd",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "environment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Environment",
+          "type": "object"
+        },
+        "kind": {
+          "$ref": "#/$defs/CheckKind"
+        },
+        "shell": {
+          "default": false,
+          "title": "Shell",
+          "type": "boolean"
+        },
+        "timeout_seconds": {
+          "default": 300,
+          "minimum": 1,
+          "title": "Timeout Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "check_id",
+        "kind",
+        "command"
+      ],
+      "title": "CheckSpec",
+      "type": "object"
+    },
+    "TaskFamily": {
+      "description": "The five supported coding-task families.",
+      "enum": [
+        "bug_fix",
+        "feature_addition",
+        "test_generation",
+        "api_migration",
+        "security_repair"
+      ],
+      "title": "TaskFamily",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Normalized input contract consumed by every family adapter.",
+  "properties": {
+    "allowed_paths": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Allowed Paths",
+      "type": "array"
+    },
+    "call_chain": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Call Chain",
+      "type": "array"
+    },
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    },
+    "family": {
+      "$ref": "#/$defs/TaskFamily"
+    },
+    "freeze_id": {
+      "title": "Freeze Id",
+      "type": "string"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "title": "Metadata",
+      "type": "object"
+    },
+    "modern_commit": {
+      "title": "Modern Commit",
+      "type": "string"
+    },
+    "modern_host_files": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Modern Host Files",
+      "type": "array"
+    },
+    "modern_symbols": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Modern Symbols",
+      "type": "array"
+    },
+    "original_branch_commit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Original Branch Commit"
+    },
+    "qualification_checks": {
+      "items": {
+        "$ref": "#/$defs/CheckSpec"
+      },
+      "title": "Qualification Checks",
+      "type": "array"
+    },
+    "regression_checks": {
+      "items": {
+        "$ref": "#/$defs/CheckSpec"
+      },
+      "title": "Regression Checks",
+      "type": "array"
+    },
+    "repository": {
+      "title": "Repository",
+      "type": "string"
+    },
+    "restoration_patch": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Restoration Patch"
+    },
+    "schema_version": {
+      "default": "change2task.workflow.v2",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_case_id": {
+      "title": "Source Case Id",
+      "type": "string"
+    },
+    "source_collection": {
+      "title": "Source Collection",
+      "type": "string"
+    },
+    "source_commit": {
+      "title": "Source Commit",
+      "type": "string"
+    },
+    "source_date": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Date"
+    },
+    "source_issue": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Issue"
+    },
+    "source_patch": {
+      "title": "Source Patch",
+      "type": "string"
+    },
+    "source_pr": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Pr"
+    },
+    "source_regression_check_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Regression Check Ids",
+      "type": "array"
+    },
+    "source_request": {
+      "title": "Source Request",
+      "type": "string"
+    },
+    "source_symbols": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Symbols",
+      "type": "array"
+    },
+    "source_target_check_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Target Check Ids",
+      "type": "array"
+    },
+    "target_checks": {
+      "items": {
+        "$ref": "#/$defs/CheckSpec"
+      },
+      "title": "Target Checks",
+      "type": "array"
+    },
+    "task_patch": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Task Patch"
+    },
+    "task_statement": {
+      "title": "Task Statement",
+      "type": "string"
+    }
+  },
+  "required": [
+    "freeze_id",
+    "case_id",
+    "family",
+    "repository",
+    "source_collection",
+    "source_case_id",
+    "source_request",
+    "source_patch",
+    "source_commit",
+    "modern_commit",
+    "task_statement",
+    "modern_host_files",
+    "allowed_paths",
+    "source_target_check_ids",
+    "source_regression_check_ids",
+    "target_checks",
+    "regression_checks"
+  ],
+  "title": "TaskCase",
+  "type": "object"
+}

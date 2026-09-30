@@ -43,6 +43,7 @@ namespaces = true
 "launch.utilities" = ["dockerfiles/**/Dockerfile"]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 markers = [
     "integration: exercises real Docker runtime workflows and may pull large images",
 ]
