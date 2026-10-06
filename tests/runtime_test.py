@@ -41,6 +41,7 @@ index 0000000..7a754f4
 
 import os
 import platform as host_platform
+from types import SimpleNamespace
 import warnings
 
 import docker
@@ -51,6 +52,8 @@ from launch.core.runtime import SetupRuntime
 from launch.core.platforms.linux import LinuxRuntime
 from launch.core.platforms.windows import WindowsRuntime
 from launch.core.platforms.android import AndroidRuntime
+from launch.core.platforms.linux import _container_mount_path
+from launch.utilities.tools.str_replace_editor import _join_container_path
 #from launch.core.platforms.macos import MacosRuntime
 
 
@@ -168,6 +171,30 @@ def test_runtime_constructor_attributes(runtime_cls, expected_attrs, patch_runti
     finally:
         runtime.stopped = True
 
+
+
+def test_linux_container_mount_paths_use_posix_separators():
+    assert _container_mount_path("/mnt_tmp", "patch.diff") == "/mnt_tmp/patch.diff"
+    assert _join_container_path("/mnt_tmp", "patch.diff", "linux") == "/mnt_tmp/patch.diff"
+    assert _join_container_path("C:\\mnt_tmp", "patch.diff", "windows") == os.path.join("C:\\mnt_tmp", "patch.diff")
+
+
+def test_linux_runtime_applies_patch_using_posix_container_path(monkeypatch, tmp_path):
+    runtime = LinuxRuntime.__new__(LinuxRuntime)
+    runtime.mnt_host = str(tmp_path)
+    runtime.mnt_container = "/mnt_tmp"
+    commands = []
+
+    def send_command(command, timeout=None):
+        commands.append(command)
+        return SimpleNamespace(metadata=SimpleNamespace(exit_code=0), output="")
+
+    monkeypatch.setattr(runtime, "send_command", send_command)
+    assert runtime.apply_patch("diff --git a/a b/a\n") is True
+    assert commands[0].startswith("git apply")
+    assert "/mnt_tmp/" in commands[0]
+    assert "\\" not in commands[0]
+    assert commands[1].startswith("rm /mnt_tmp/")
 
 
 def supported_integration_platforms() -> set[str]:

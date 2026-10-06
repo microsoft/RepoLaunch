@@ -16,7 +16,9 @@ from launch.core.platforms.base import (
     BaseRuntime
 )
 
-import os, json
+import json
+import os
+import posixpath
 from typing import Any, Optional
 import queue
 import threading
@@ -25,6 +27,12 @@ import uuid
 
 import docker
 from docker.models.containers import Container
+
+
+def _container_mount_path(mount_path: str, filename: str) -> str:
+    """Build a path for a Linux container regardless of the host platform."""
+    return posixpath.join(mount_path, filename)
+
 
 class LinuxRuntime(BaseRuntime):
 
@@ -207,7 +215,7 @@ class LinuxRuntime(BaseRuntime):
         hostpath = os.path.join(self.mnt_host, filename)
         with open(hostpath, "w") as f:
             f.write(patch)
-        containerpath =  os.path.join(self.mnt_container, filename)
+        containerpath = _container_mount_path(self.mnt_container, filename)
         
         cmd = f"""git apply --reject  --whitespace=nowarn  {containerpath} """
         res = self.send_command(cmd)

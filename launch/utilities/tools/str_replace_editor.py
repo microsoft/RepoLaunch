@@ -1,9 +1,16 @@
 import os
+import posixpath
 import time
 from typing import Any, Optional
 
 from launch.core.runtime import SetupRuntime
 from launch.agent.action_parser import ActionParser
+
+
+def _join_container_path(mount_path: str, filename: str, platform: str) -> str:
+    if platform == "linux":
+        return posixpath.join(mount_path, filename)
+    return os.path.join(mount_path, filename)
 
 
 class Editor(ActionParser):
@@ -187,7 +194,7 @@ require (
                 "error": f"{container_path} is directory. Cannot edit on directory. Check again!"
             }
         swap_file = self.temp_file()
-        container_mnt_path = os.path.join(self.mnt_container, swap_file)
+        container_mnt_path = _join_container_path(self.mnt_container, swap_file, self.container.platform)
         host_mnt_path = os.path.join(self.mnt_host, swap_file)
         self.container.send_command(f"cp {container_path} {container_mnt_path}")
         return {
@@ -219,7 +226,7 @@ require (
         content = content.replace(old_str, new_str)
         new_swap = self.temp_file()
         new_host_path = os.path.join(self.mnt_host, new_swap)
-        new_container_path = os.path.join(self.mnt_container, new_swap)
+        new_container_path = _join_container_path(self.mnt_container, new_swap, self.container.platform)
         with open(new_host_path, "w", encoding="utf-8") as f:
             f.write(content)
         self._write_back(new_container_path, path, old_swap=res["container_path"])
@@ -243,7 +250,7 @@ require (
         swap_file = self.temp_file()
         with open(os.path.join(self.mnt_host,swap_file), "w", encoding="utf-8") as f:
             f.write(content)
-        self._write_back(os.path.join(self.mnt_container,swap_file), path)
+        self._write_back(_join_container_path(self.mnt_container, swap_file, self.container.platform), path)
         observation = f"File created successfully at {path}.\n"
         if ("testbed" in path) or ((not path.strip().startswith("C:")) and (not path.strip().startswith("/"))):
             self.container.send_command(f"git add {path}")
