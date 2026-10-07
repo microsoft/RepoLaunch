@@ -25,6 +25,32 @@ import docker
 from docker.models.containers import Container
 
 
+# Passing a host Docker daemon into an evaluated task container is privileged.
+# Keep it opt-in and let callers select the source pipe explicitly.
+WINDOWS_CONTAINER_DOCKER_PIPE_SOURCE_ENV = "REPOLAUNCH_WINDOWS_CONTAINER_DOCKER_PIPE_SOURCE"
+WINDOWS_DOCKER_PIPE_TARGET = r"\\.\pipe\docker_engine"
+
+
+def build_windows_container_docker_mounts() -> list[Any]:
+    """Return an explicit host-Docker npipe mount for Windows task containers.
+
+    Some Windows projects invoke Docker from inside the task container and use
+    Docker's conventional ``\\\\.\\pipe\\docker_engine`` endpoint.  Native engines
+    may expose a differently named host pipe.  The evaluator must not expose
+    the host daemon by default; callers can opt in by setting
+    ``REPOLAUNCH_WINDOWS_CONTAINER_DOCKER_PIPE_SOURCE`` to the host npipe path.
+    An empty value explicitly disables the mount.
+    """
+    source = os.environ.get(WINDOWS_CONTAINER_DOCKER_PIPE_SOURCE_ENV, "").strip()
+    if not source:
+        return []
+    return [docker.types.Mount(
+        source=source,
+        target=WINDOWS_DOCKER_PIPE_TARGET,
+        type="npipe",
+    )]
+
+
 class WindowsRuntime(LinuxRuntime):
 
     def __init__(
@@ -148,6 +174,7 @@ function prompt {
         run_kwargs = {
             "cpu_count": CPU_CORES,  # cpu_quota is Linux-only
             "mem_limit": MEM_LIMIT,
+            "mounts": build_windows_container_docker_mounts(),
         }
 
         container = client.containers.run(
