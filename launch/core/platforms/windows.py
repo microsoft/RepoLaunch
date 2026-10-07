@@ -22,6 +22,49 @@ import queue
 import uuid
 
 import docker
+
+
+# Do not inherit or invent a machine-local proxy route for evaluated Windows
+# containers. Callers that need one can opt in explicitly through these names.
+WINDOWS_CONTAINER_PROXY_ENV = "REPOLAUNCH_WINDOWS_CONTAINER_PROXY"
+WINDOWS_CONTAINER_NO_PROXY_ENV = "REPOLAUNCH_WINDOWS_CONTAINER_NO_PROXY"
+DEFAULT_WINDOWS_CONTAINER_NO_PROXY = "localhost,127.0.0.1,::1"
+
+
+def build_windows_container_environment() -> dict[str, str]:
+    """Build the task-container environment without a proxy by default.
+
+    A Windows evaluation container may be able to reach an external registry
+    directly even when a host-local proxy is stale or unreachable from process
+    isolation. Conversely, managed, regional, and enterprise environments may
+    require a proxy. Keep proxy propagation explicit rather than guessing from
+    host variables: callers can supply a container-reachable route through
+    ``REPOLAUNCH_WINDOWS_CONTAINER_PROXY``. When configured, set both
+    conventional upper- and lower-case variables because Windows project
+    toolchains use both spellings.
+    """
+    environment = {"TERM": "xterm-mono"}
+    proxy = os.environ.get(WINDOWS_CONTAINER_PROXY_ENV, "").strip()
+    if not proxy:
+        return environment
+
+    environment.update({
+        "HTTP_PROXY": proxy,
+        "HTTPS_PROXY": proxy,
+        "ALL_PROXY": proxy,
+        "http_proxy": proxy,
+        "https_proxy": proxy,
+        "all_proxy": proxy,
+    })
+    no_proxy = os.environ.get(
+        WINDOWS_CONTAINER_NO_PROXY_ENV,
+        DEFAULT_WINDOWS_CONTAINER_NO_PROXY,
+    ).strip()
+    if no_proxy:
+        environment.update({"NO_PROXY": no_proxy, "no_proxy": no_proxy})
+    return environment
+
+
 from docker.models.containers import Container
 
 
@@ -157,9 +200,7 @@ function prompt {
             stdin_open=True,
             tty=True,
             detach=True,
-            environment={
-                "TERM": "xterm-mono",
-            },
+            environment=build_windows_container_environment(),
             working_dir=working_dir,
             extra_hosts=extra_hosts,
             volumes={
