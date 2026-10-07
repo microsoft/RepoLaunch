@@ -25,6 +25,12 @@ import docker
 from docker.models.containers import Container
 
 
+# A native Windows Docker Engine commonly exposes docker_engine_windows rather
+# than Docker Desktop's dockerDesktopWindowsEngine context pipe. Callers can
+# still override this through DOCKER_HOST for another endpoint.
+DEFAULT_WINDOWS_DOCKER_HOST = "npipe:////./pipe/docker_engine_windows"
+
+
 class WindowsRuntime(LinuxRuntime):
 
     def __init__(
@@ -129,6 +135,9 @@ function prompt {
         docker_timeout: int,
         command_timeout: int,
     ) -> WindowsRuntime:
+        # Keep an explicit endpoint authoritative. Without one, target the
+        # native Windows daemon pipe rather than a possibly stale Desktop context.
+        os.environ.setdefault("DOCKER_HOST", DEFAULT_WINDOWS_DOCKER_HOST)
         try:
             docker.from_env().ping()
         except docker.errors.DockerException:
