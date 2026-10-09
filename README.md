@@ -51,6 +51,28 @@ An accepted task includes:
 - append-only construction records with sensitive output capture disabled by
   default.
 
+## Public task corpus
+
+The release includes the paper's
+[`900 paired task cases`](methods/change2task/data/v1):
+
+- 500 Bug Fix pairs;
+- 100 Feature Addition pairs;
+- 100 Test Generation pairs;
+- 100 API Migration pairs;
+- 100 Security Repair pairs.
+
+Every record contains the historical task provenance and the reconstructed
+modern task definition. Local artifact paths have been materialized, task text
+has been privacy-sanitized, and checksums cover the complete release.
+Patch content is embedded for 860 records. Forty records remain reference-only
+because of missing upstream licenses, Business Source License terms, or source
+dataset redistribution restrictions.
+
+The corpus contains task data only. It excludes coding-agent outputs,
+solved/unsolved results, model identities, token usage, timing, cost, resource
+telemetry, agreement statistics, and RQ summaries.
+
 ## Construction pipeline
 
 ```mermaid
@@ -169,13 +191,16 @@ The release implementation lives in
 - [L3 provider configuration](methods/change2task/docs/provider-configuration.md)
 - [Security and trusted inputs](methods/change2task/docs/security-and-trusted-inputs.md)
 - [Machine-readable TaskCase schema](methods/change2task/schemas/task-case.schema.json)
+- [Public 900-pair task corpus](methods/change2task/data/v1)
+- [Dataset provenance and license registry](methods/change2task/data/v1/sources.json)
+- [Public-release privacy and integrity audit](methods/change2task/data/v1/AUDIT.md)
 
 ## Release scope
 
-This branch publishes the reusable method implementation only. It intentionally
-does **not** contain experiment cohorts, task datasets, run outputs, model
-transcripts, route receipts, token logs, statistical summaries, paper tables,
-or internal operational state.
+This branch publishes the reusable method implementation and the sanitized
+900-pair public task corpus. It intentionally does **not** contain coding-agent
+evaluation outputs, run directories, model transcripts, route receipts, token
+logs, statistical summaries, paper tables, or internal operational state.
 
 Public CI is model-free and network-free. Tests use synthetic local Git
 repositories and exercise the CLI, deterministic construction, validation

@@ -54,3 +54,9 @@ jobs:
           change2task validate-case examples/task_case.synthetic.json
           change2task case-schema --output schemas/task-case.schema.json
           git diff --exit-code -- schemas/task-case.schema.json
+
+      - name: Validate public task corpus
+        working-directory: methods/change2task
+        run: |
+          python scripts/validate_public_dataset.py data/v1
+          sha256sum -c data/v1/CHECKSUMS.sha256

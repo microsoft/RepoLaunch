@@ -16,8 +16,9 @@ evolution into grounded tasks with explicit challenge states, restoration
 patches, and repeatable verification.
 
 This package contains the reusable construction method only. No experiment
-cohorts, outputs, statistics, receipts, transcripts, or paper-production data
-are included.
+evaluation outputs, statistics, receipts, transcripts, or paper-production
+data are included. The sanitized task-only corpus is released separately under
+[`data/v1`](data/v1).
 
 ## Method at a glance
 
@@ -77,6 +78,27 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
 cp .env.example .env
+```
+
+## Public dataset
+
+[`data/v1`](data/v1) contains 900 provenance-linked task pairs from 252 public
+GitHub repositories. It includes task statements, pinned revisions, challenge
+and restoration patches, test contracts, repository URLs, source collection
+provenance, license notices, checksums, and a strict schema.
+
+The release embeds executable patch content for 860 records. Forty records are
+retained as reference-only task metadata because of missing upstream licenses,
+Business Source License terms, or source dataset redistribution restrictions.
+
+It does not include any agent-evaluation result, model output, token record,
+runtime/cost telemetry, or RQ statistic.
+
+Validate it with:
+
+```bash
+python scripts/validate_public_dataset.py data/v1
+sha256sum -c data/v1/CHECKSUMS.sha256
 ```
 
 ## Prepare a case
@@ -183,6 +205,8 @@ See [provider configuration](docs/provider-configuration.md) for backend details
 - [TaskCase contract](docs/task-case-schema.md)
 - [Provider configuration](docs/provider-configuration.md)
 - [Security and trusted inputs](docs/security-and-trusted-inputs.md)
+- [Public 900-pair task corpus](data/v1)
+- [Dataset release audit](data/v1/AUDIT.md)
 - [Project overview](../../README.md)
 
 ## Security and privacy
