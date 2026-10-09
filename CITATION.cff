@@ -1,0 +1,62 @@
+cff-version: 1.2.0
+message: "If you use Change2Task, please cite the following paper."
+title: "Change2Task"
+type: software
+version: 0.2.0
+date-released: 2026-10-09
+url: "https://github.com/microsoft/RepoLaunch/tree/change2task"
+authors:
+  - family-names: Qi
+    given-names: Haomin
+  - family-names: Wang
+    given-names: Xingliang
+  - family-names: Gao
+    given-names: Xuanqi
+  - family-names: Sang
+    given-names: Baihui
+  - family-names: Zhang
+    given-names: Xin
+  - family-names: Ma
+    given-names: Minghua
+  - family-names: Gao
+    given-names: Pengfei
+  - family-names: Kang
+    given-names: Yu
+  - family-names: Lin
+    given-names: Qingwei
+  - family-names: Rajmohan
+    given-names: Saravan
+  - family-names: Zhang
+    given-names: Dongmei
+  - family-names: Zhang
+    given-names: Qi
+preferred-citation:
+  type: article
+  title: "Change2Task: From Repository Changes to Executable Coding Agent Tasks and Environments"
+  year: 2026
+  url: "https://arxiv.org/abs/2607.28591"
+  authors:
+    - family-names: Qi
+      given-names: Haomin
+    - family-names: Wang
+      given-names: Xingliang
+    - family-names: Gao
+      given-names: Xuanqi
+    - family-names: Sang
+      given-names: Baihui
+    - family-names: Zhang
+      given-names: Xin
+    - family-names: Ma
+      given-names: Minghua
+    - family-names: Gao
+      given-names: Pengfei
+    - family-names: Kang
+      given-names: Yu
+    - family-names: Lin
+      given-names: Qingwei
+    - family-names: Rajmohan
+      given-names: Saravan
+    - family-names: Zhang
+      given-names: Dongmei
+    - family-names: Zhang
+      given-names: Qi

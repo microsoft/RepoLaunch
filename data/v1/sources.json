@@ -1,0 +1,138 @@
+{
+  "schema_version": "change2task.public-source-registry.v1",
+  "verified_at": "2026-10-09",
+  "license_policy": "Change2Task-authored packaging and metadata follow the repository MIT license. Issue text, patches, tests, source snippets, and repository snapshots retain the licenses and terms of their originating benchmark and upstream repository. No benchmark tooling license is asserted to relicense third-party repository material.",
+  "sources": [
+    {
+      "id": "swe_bench_original",
+      "name": "SWE-bench",
+      "official_urls": [
+        "https://github.com/SWE-bench/SWE-bench",
+        "https://huggingface.co/datasets/SWE-bench/SWE-bench"
+      ],
+      "tooling_license": "MIT",
+      "dataset_license": "Not separately declared by the dataset card",
+      "upstream_material_policy": "Per-source-repository licenses apply to issue text, patches, tests, and source material."
+    },
+    {
+      "id": "swe_bench_lite",
+      "name": "SWE-bench Lite",
+      "official_urls": [
+        "https://huggingface.co/datasets/SWE-bench/SWE-bench_Lite",
+        "https://github.com/SWE-bench/SWE-bench"
+      ],
+      "tooling_license": "MIT",
+      "dataset_license": "Not separately declared by the dataset card",
+      "upstream_material_policy": "This is a SWE-bench subset; per-source-repository licenses remain applicable."
+    },
+    {
+      "id": "swe_bench_verified",
+      "name": "SWE-bench Verified",
+      "official_urls": [
+        "https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified",
+        "https://github.com/SWE-bench/SWE-bench"
+      ],
+      "tooling_license": "MIT",
+      "dataset_license": "Not separately declared by the dataset card",
+      "upstream_material_policy": "Human validation does not change the licensing of upstream issue text, patches, tests, or source material."
+    },
+    {
+      "id": "swe_bench_live",
+      "name": "SWE-bench-Live",
+      "official_urls": [
+        "https://github.com/microsoft/SWE-bench-Live",
+        "https://huggingface.co/datasets/SWE-bench-Live/SWE-bench-Live"
+      ],
+      "tooling_license": "MIT",
+      "dataset_license": "MIT",
+      "upstream_material_policy": "Per-source-repository licenses remain applicable to collected patches and tests."
+    },
+    {
+      "id": "swe_bench_pro",
+      "name": "SWE-bench Pro",
+      "official_urls": [
+        "https://github.com/scaleapi/SWE-bench_Pro-os",
+        "https://huggingface.co/datasets/ScaleAI/SWE-bench_Pro"
+      ],
+      "tooling_license": "MIT",
+      "dataset_license": "Task content remains subject to the licenses of the 11 upstream repositories",
+      "upstream_material_policy": "Follow the explicit license section in the official dataset card and each source repository license."
+    },
+    {
+      "id": "swe_rebench_v2",
+      "name": "SWE-rebench V2 PRs",
+      "official_urls": [
+        "https://github.com/SWE-rebench/SWE-rebench-V2",
+        "https://huggingface.co/datasets/nebius/SWE-rebench-V2-PRs"
+      ],
+      "tooling_license": "MIT",
+      "dataset_license": "CC-BY-4.0",
+      "upstream_material_policy": "The dataset includes per-instance SPDX metadata; each source repository license must also be respected."
+    },
+    {
+      "id": "fea_bench",
+      "name": "FEA-Bench",
+      "official_urls": [
+        "https://github.com/microsoft/FEA-Bench",
+        "https://huggingface.co/datasets/microsoft/FEA-Bench"
+      ],
+      "tooling_license": "MIT",
+      "dataset_license": "Other / repository-specific",
+      "upstream_material_policy": "The official release publishes essential metadata and requires users to retrieve repository material under the involved repositories' licenses."
+    },
+    {
+      "id": "swe_bench_plus_plus",
+      "name": "SWE-Bench++",
+      "official_urls": [
+        "https://github.com/TuringEnterprises/SWE-Bench-plus-plus",
+        "https://huggingface.co/datasets/TuringEnterprises/SWE-Bench-plus-plus"
+      ],
+      "tooling_license": "MIT",
+      "dataset_license": "Custom non-commercial research, academic, and educational use terms",
+      "upstream_material_policy": "The official dataset terms are non-transferable and revocable and do not replace source repository licenses."
+    },
+    {
+      "id": "pymigbench",
+      "name": "PyMigBench 2.0",
+      "official_urls": [
+        "https://github.com/ualberta-smr/PyMigBench",
+        "https://doi.org/10.6084/m9.figshare.24216858.v2"
+      ],
+      "tooling_license": "MIT",
+      "dataset_license": "MIT",
+      "upstream_material_policy": "Substantial code changes remain subject to the originating projects' licenses."
+    },
+    {
+      "id": "patcheval",
+      "name": "PatchEval / PatchEval-Verified",
+      "official_urls": [
+        "https://github.com/bytedance/PatchEval",
+        "https://huggingface.co/datasets/ByteDance/PatchEval"
+      ],
+      "tooling_license": "Apache-2.0",
+      "dataset_license": "Apache-2.0",
+      "upstream_material_policy": "Benchmark licensing does not replace the licenses of affected upstream projects."
+    },
+    {
+      "id": "vul4j",
+      "name": "Vul4J",
+      "official_urls": [
+        "https://github.com/tuhh-softsec/Vul4J"
+      ],
+      "tooling_license": "GPL-3.0",
+      "dataset_license": "CC-BY-4.0",
+      "upstream_material_policy": "Human patches and project snapshots retain relevant upstream project terms."
+    },
+    {
+      "id": "vjbench",
+      "name": "VJBench",
+      "official_urls": [
+        "https://github.com/lin-tan/llm-vul",
+        "https://github.com/VJBench"
+      ],
+      "tooling_license": "BSD-3-Clause",
+      "dataset_license": "No blanket license verified for all separately hosted subject repositories",
+      "upstream_material_policy": "Each VJBench subject repository is governed by its own upstream license."
+    }
+  ]
+}

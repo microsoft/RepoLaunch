@@ -1,54 +1,48 @@
-# Contributing
+# Contributing to Change2Task
 
-## Microsoft Policy
+Change2Task welcomes bug fixes, task-family adapters, verifier improvements,
+documentation, and reproducibility work.
 
-This project welcomes contributions and suggestions. Most contributions require you to
-agree to a Contributor License Agreement (CLA) declaring that you have the right to,
-and actually do, grant us the rights to use your contribution. For details, visit
-https://cla.microsoft.com.
-
-When you submit a pull request, a CLA-bot will automatically determine whether you need
-to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the
-instructions provided by the bot. You will only need to do this once across all repositories using our CLA.
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/)
-or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
-
-## Contributing to RepoLaunch Source Codes
-
-Current tests are under `./tests/`. To run regression tests:
+## Development setup
 
 ```bash
-pip install -e ".[test]"
-pytest -rA
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
 ```
 
-1. Welcome issues and PRs related to the bugs and inefficiencies of out agent.
+Run the complete local checks:
 
-2. Contribute more unit / integration tests.
+```bash
+python -m pytest -q
+python -m ruff check .
+python scripts/validate_public_dataset.py data/v1
+(cd data/v1 && sha256sum -c CHECKSUMS.sha256)
+```
 
-3. We found that many threads created from launch/run.py would have "Result Empty Error", which means the last agent state is not saved to disk and not passed back to the main function in launch/run.py. We think it's mostly because docker commit in save.py takes too long time (usually 10min - 120 min) -- it will return read timeout and so often make the thread DEAD... Future works would make docker commit detached in a separate thread/process to solve the problem. Maybe there's also problem in docker concurrency and old Langchain agent apis... Please help us find that problem and fix it!
+## Change guidelines
 
-4. In [launch/utilities/language_handlers.py](launch/utilities/language_handlers.py), you can see language-specific and operating-system-specific prompts and base images. 
-Please help us improve these prompts and add new base images. 
-Base images need update when the latest version of a language updates. 
-Please add official new images if official sources provide them; 
-otherwise you could help us build customized ones and upload to dockerhub public repos, there are example dockerfiles in [launch/utilities/dockerfiles](launch/utilities/dockerfiles).
+- Preserve the L1 → L2 → bounded L3 escalation policy.
+- Apply identical qualification, scope, fidelity, and lifecycle gates at every
+  construction level.
+- Treat infrastructure failures separately from task failures.
+- Do not commit credentials, local paths, model transcripts, or evaluation
+  results.
+- Keep public task records task-only. Agent outcomes, telemetry, and statistics
+  belong outside this repository.
+- Update schemas, examples, documentation, tests, and checksums with any public
+  data-format change.
+- Respect source benchmark terms and upstream repository licenses.
 
-5. To improve the success rate / lower down early submit hallucination (unsuccessful build but submit) in the setup stage; 
-and increase the extraction coverage of per-testcase status and per-testcase command from test log in the organize stage -- any suggestions and improvements to the agent workflow is welcome.
+## Pull requests
 
+Keep changes focused and describe:
 
-## Future Directions to Study
+1. the behavior or contract being changed;
+2. the validation performed;
+3. any compatibility, provenance, privacy, or licensing impact.
 
-We encourage integrating more useful tool calls into RepoLaunch. For example, RAG tools to construct and retrieve memory database of repo launch experiences.
-
- - The agentic workflow is defined in `launch/core/workflow.py`
- - The tool calls of each stage are defined in each stage definition file in `launch/agent/...`
- - We have implemented the string replace editor tool in `launch/utilities/tools/str_replace_editor.py`. You can add it to the setup agent `launch/agent/setup/setup.py` if you think for your task fixing the repo bugs during build is necessary. We have not added it into the setup agent because in our task to create SWE tasks, the existing bugs at a buggy commit should be kept as it is, so RepoLaunch should not fix any bugs itself.
-
-We encourage training projects based on the rollout trajectories of RepoLaunch. For example, Rejection Fine-tuning and Reinforcement Learning of open source LMs.
-
- - The llm calling is defined in `launch/utilities/llm.py`
-
+Most contributions require agreeing to the
+[Microsoft Contributor License Agreement](https://cla.microsoft.com).
+This project follows the
+[Microsoft Open Source Code of Conduct](CODE_OF_CONDUCT.md).

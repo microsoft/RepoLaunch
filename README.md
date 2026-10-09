@@ -1,86 +1,354 @@
-<h1 align="center"> 🚀 RepoLaunch Agent </h1>
+<div align="center">
+
+# Change2Task
+
+### From Repository Changes to Executable Coding-Agent Tasks
+
+**Environment Engineering for Coding Agents · Chapter II**
+
+<p>
+  <a href="https://arxiv.org/abs/2607.28591">
+    <img alt="Paper" src="https://img.shields.io/badge/arXiv-2607.28591-B31B1B?style=for-the-badge&logo=arXiv">
+  </a>
+  <a href="https://github.com/microsoft/RepoLaunch/actions/workflows/ci.yml?query=branch%3Achange2task">
+    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/microsoft/RepoLaunch/ci.yml?branch=change2task&style=for-the-badge&label=CI">
+  </a>
+  <a href="./data/v1">
+    <img alt="Dataset" src="https://img.shields.io/badge/Task_Pairs-900-2563EB?style=for-the-badge">
+  </a>
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white">
+  <a href="./LICENSE">
+    <img alt="License" src="https://img.shields.io/badge/Code-MIT-16A34A?style=for-the-badge">
+  </a>
+</p>
+
+<p>
+  Turn merged pull requests and repository evolution into grounded,
+  executable tasks on healthy modern revisions.
+</p>
+
+</div>
 
 <p align="center">
-  <a href="https://arxiv.org/abs/2603.05026"><img alt="paper" src="https://img.shields.io/badge/ArXiv-%23B31B1B?style=for-the-badge&logo=arXiv"></a>&nbsp;
-  <a href="https://pypi.org/project/repolaunch/"><img alt="PyPI version" src="https://img.shields.io/pypi/v/repolaunch?style=for-the-badge&amp;logo=pypi&amp;logoColor=white"></a>
-  <br>
-  <a href="https://repolaunch.github.io/"><img alt="Website" src="https://img.shields.io/badge/%20-WEBPAGE-D2B46F?style=for-the-badge&amp;logo=readthedocs&amp;logoColor=white&amp;labelColor=343A40"></a>&nbsp;
-  <a href="https://github.com/microsoft/RepoLaunch/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/SWE-bench/SWE-bench?style=for-the-badge"></a>
+  <img
+    src="./assets/change2task-workflow.png"
+    alt="Change2Task workflow: evidence, modern base, task construction, and lifecycle validation"
+    width="100%"
+  >
 </p>
 
 <p align="center">
-  <em>Turning Any Codebase into Testable Sandbox Environment</em>
+  <sub>Change2Task workflow from the paper: historical evidence → modern base → L1/L2/L3 construction → H/C/R validation.</sub>
 </p>
 
-RepoLaunch is the **first** agentic SWE tool for repository build and test management across programming languages and operating systems. Given a code repository, RepoLaunch can:
-- Install all dependencies and build the repository, delivered as a docker image, with docker image layer info collected for Dockerfile reconstruction;
-- Organize the command to rebuild the repository inside a container after repo modifications;
-- Organize command to test the repository, write a parser to parse test output into structured testcase-status mapping, and optionally find per-testcase running command.
+---
 
-RepoLaunch now supports:
-- All mainstram languages : C, C++, C#, Python, Java, Node.js (JS & TS), Go, Rust.
-- Building on linux images, android images, windows images.
+## Why Change2Task?
 
-## Notifications
-**[25/Sep/2026]** Congratulations! RepoLaunch is accepted as a poster paper by **NeurIPS 2026 Main Conference**!
+An executable coding-agent task is more than an issue description. It needs a
+specific repository state, a realistic objective, development tools, protected
+behavior, and a verifier that distinguishes success from plausible-looking
+failure.
 
-**[20/Aug/2026]** Proposed the memory-aware solution to reuse existing successful results of RepoLaunch to build&test the different commits of the same repo. See [Development.md](https://github.com/microsoft/RepoLaunch/blob/main/docs/Development.md#reuse-repolaunch-results-for-different-commits-of-the-same-repo). This solution is especially useful to create multiple task instances from different issues of the same repo. Experiments on building executable envs for 856 GitHub issues from 93 repos show >= 98% success, with 82% savings on LM API cost and 78% savings on Docker image storage space.
+Change2Task treats repository history as reusable task evidence. It transfers a
+historical maintenance change onto a runnable modern revision, constructs a
+challenge state, and verifies the complete lifecycle:
 
-**[28/Mar/2026]**
+```text
+Healthy H  ──task patch──▶  Challenge C  ──restoration──▶  Restored H′
+ target ✓                    target ✗                         target ✓
+ regression ✓                regression ✓                     regression ✓
+```
 
-RepoLaunch now uses LiteLLM to:
-  - ensure compatibility with all mainstream LLM providers
-  - enable local LLM deployment for agentic training (RFT, RL) based on launch results
+RepoLaunch established the first chapter of environment engineering: making
+repositories buildable and testable. Change2Task is the sequel: obtaining more
+verified coding-agent tasks from every maintained environment.
 
-RepoLaunch now still uses traditional Thought-Action format for agent actions, because
-  - We find that many smaller open-source LMs cannot handle tool call field well.
-  - Thought Action in pure text content field ensures best compatibility and feasibility for smaller open-source LMs.
+## What is included?
 
-**[01/Mar/2026]** Thanks [GLM-5 Foundation Model](https://arxiv.org/pdf/2602.15763) for using RepoLaunch to create executable environment for agentic RL!
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <strong>Construction pipeline</strong><br>
+      L1 Patch Reversal, L2 Code Mapping, and bounded L3 Agent Reconstruction
+      behind one shared acceptance contract.
+    </td>
+    <td width="33%" valign="top">
+      <strong>Five task families</strong><br>
+      Bug Fix, Feature Addition, Test Generation, API Migration, and Security
+      Repair.
+    </td>
+    <td width="33%" valign="top">
+      <strong>Public task corpus</strong><br>
+      900 provenance-linked task pairs from 252 public GitHub repositories and
+      12 benchmark sources.
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" valign="top">
+      <strong>Strict validation</strong><br>
+      Qualification, scope, fidelity, repeated H/C/R lifecycle, explicit
+      infrastructure failures, and append-only evidence.
+    </td>
+    <td width="33%" valign="top">
+      <strong>Agent-ready interface</strong><br>
+      A typed Python API, the <code>change2task</code> CLI, project Skill,
+      <code>AGENTS.md</code>, and one-command Skill installation.
+    </td>
+    <td width="33%" valign="top">
+      <strong>Release hygiene</strong><br>
+      Portable paths, privacy review, source provenance, pinned-base license
+      inventory, strict schema, and complete checksums.
+    </td>
+  </tr>
+</table>
 
-## Launch your Repository
+## Install
 
-To run RepoLaunch agent to launch your repository, please refer to [Development.md](https://github.com/microsoft/RepoLaunch/blob/main/docs/Development.md).
+### One-command setup: CLI + Agent Skill
 
-Trajectory & result demos of RepoLaunch agent: [RepoLaunch-Trajectory-Archive](https://github.com/SWE-bench-Live/RepoLaunch-trajectory-archive).
+```bash
+curl -fsSL \
+  https://raw.githubusercontent.com/microsoft/RepoLaunch/change2task/scripts/install.sh \
+  | bash
+```
 
-The basic workflow of RepoLaunch agent is as follows:
+This creates an isolated environment under `~/.local/share/change2task`, links
+the CLI into `~/.local/bin`, and installs the Skill under
+`~/.cursor/skills/change2task`. It does not require `sudo`.
 
-![RepoLaunch Workflow](https://raw.githubusercontent.com/microsoft/RepoLaunch/main/docs/assets/1.png)
+### CLI and Python package
 
-## Contributing
+```bash
+python -m pip install \
+  "git+https://github.com/microsoft/RepoLaunch.git@change2task"
+```
 
-### Contributing to RepoLaunch Source Codes
+Verify:
 
-Please refer to [CONTRIBUTING.md::Contributing to RepoLaunch Source Codes](https://github.com/microsoft/RepoLaunch/blob/main/CONTRIBUTING.md#contributing-to-repolaunch-source-codes).
+```bash
+change2task --help
+```
 
-### Use RepoLaunch to Create New Software Engineering Benchmarks
+### Clone the standalone branch
 
-So far the major contribution of RepoLaunch is to build execution environment for [SWE-bench-Live](https://github.com/microsoft/SWE-bench-Live), where the creation of SWE-tasks is based purely on scraping GitHub issues and PRs. Now SWE-bench-Live datasets have been used for benchmarking of LLMs and coding agents, and agentic training (SFT/RL) of code LMs. 
+```bash
+git clone --branch change2task --single-branch \
+  https://github.com/microsoft/RepoLaunch.git Change2Task
+cd Change2Task
+python -m pip install -e ".[dev]"
+```
 
-We encourage new research projects to design new kinds of SWE-tasks for LLM benchmarking and training, with task creation automated by RepoLaunch.
+## Install the Agent Skill
 
-![RepoLaunch automated SWE dataset creation](https://raw.githubusercontent.com/microsoft/RepoLaunch/main/docs/assets/2.png)
+Install the Change2Task Skill into `~/.cursor/skills/change2task`:
 
-### Improve Agentic Repository Build and Management Task based on RepoLaunch
+```bash
+curl -fsSL \
+  https://raw.githubusercontent.com/microsoft/RepoLaunch/change2task/scripts/install_skill.sh \
+  | bash
+```
 
-Please refer to [CONTRIBUTING.md::Future Directions to Study](https://github.com/microsoft/RepoLaunch/blob/main/CONTRIBUTING.md#future-directions-to-study).
+The repository also ships the project-local Skill at
+[`.cursor/skills/change2task`](./.cursor/skills/change2task) and a generic
+[`AGENTS.md`](./AGENTS.md), so compatible agents can discover the workflow
+without copying instructions from the README.
 
-## Citations
+Then ask an agent:
+
+```text
+Use the change2task skill to validate this TaskCase and construct it against
+/path/to/repository. Keep the worktree isolated and report the accepted level
+or explicit terminal failure.
+```
+
+## Quick start
+
+### 1. Generate the strict input schema
+
+```bash
+change2task case-schema --output schemas/task-case.schema.json
+```
+
+### 2. Start from the synthetic example
+
+```bash
+cp examples/task_case.synthetic.json /tmp/my-case.json
+```
+
+Replace the placeholder repository, commits, historical patch, modern behavior
+hosts, allowed paths, target checks, and regression checks.
+
+### 3. Validate without executing repository commands
+
+```bash
+change2task validate-case /tmp/my-case.json
+```
+
+### 4. Construct and verify the task
+
+```bash
+change2task build-case /tmp/my-case.json \
+  --repository-cache /path/to/repository \
+  --output .change2task/outcome.json
+```
+
+The checkout must contain the exact `modern_commit` declared by the case.
+Change2Task creates a detached case-specific worktree and removes it after the
+run unless `--keep-worktree` is requested.
+
+## Construction contract
+
+### L1 · Patch Reversal
+
+Reverse-apply the historical forward patch when it still maps cleanly onto the
+modern revision.
+
+### L2 · Code Mapping
+
+Map a unique historical post-change block back to its pre-change behavior.
+Ambiguous mappings and unsupported pure additions/deletions fail explicitly.
+
+### L3 · Agent Reconstruction
+
+Invoke a pluggable coding-agent backend only after deterministic routes fail.
+The backend edits an isolated worktree and can receive structured feedback from
+failed gates for at most four attempts.
+
+### Shared gates
+
+Every candidate, regardless of level, must pass:
+
+1. clean patch application;
+2. syntax/build qualification;
+3. task-family scope and explicit allowed paths;
+4. six-component source-to-modern fidelity;
+5. repeated healthy/challenge/restored lifecycle validation.
+
+No construction level receives a weaker acceptance definition.
+
+## Public 900-pair corpus
+
+The release lives in [`data/v1`](./data/v1):
+
+```text
+data/v1/
+├── task_pairs/
+│   ├── bug_fix.jsonl                 # 500
+│   ├── feature_addition.jsonl        # 100
+│   ├── test_generation.jsonl         # 100
+│   ├── api_migration.jsonl           # 100
+│   └── security_repair.jsonl         # 100
+├── manifest.json
+├── schema.json
+├── sources.json
+├── repository_licenses.json
+├── AUDIT.md
+├── THIRD_PARTY_NOTICES.md
+└── CHECKSUMS.sha256
+```
+
+- **900/900 unique pair IDs**
+- **252 public repository slugs**
+- **12 public benchmark collections/releases**
+- **860 embedded executable task records**
+- **40 reference-only records gated by upstream licensing or redistribution
+  terms**
+
+The corpus contains task definitions only. It excludes agent answers,
+solved/unsolved outcomes, model identities, prompts and responses, token usage,
+timing, cost, CPU/RSS/disk telemetry, agreement statistics, RQ summaries,
+receipts, and checkpoints.
+
+Validate it:
+
+```bash
+python scripts/validate_public_dataset.py data/v1
+(cd data/v1 && sha256sum -c CHECKSUMS.sha256)
+```
+
+Read the [dataset card](./data/v1/README.md),
+[release audit](./data/v1/AUDIT.md), and
+[third-party notices](./data/v1/THIRD_PARTY_NOTICES.md) before redistribution
+or model training.
+
+## Python API
+
+```python
+from pathlib import Path
+
+from change2task.workflow.construction import CaseBuilder
+from change2task.workflow.ledger import ConstructionLedger
+from change2task.workflow.models import TaskCase
+
+case = TaskCase.model_validate_json(Path("case.json").read_text())
+ledger = ConstructionLedger(Path(".change2task/ledger"))
+
+builder = CaseBuilder(
+    repository_cache=Path("/path/to/repository"),
+    worktrees_root=Path(".change2task/worktrees"),
+    ledger=ledger,
+)
+```
+
+Implement `ConstructionAgentBackend.run(...)` and pass it to `CaseBuilder` to
+use a different L3 coding agent.
+
+## Repository layout
+
+```text
+.
+├── .cursor/skills/change2task/   # Auto-discoverable Agent Skill
+├── .github/workflows/ci.yml      # Method, package, data, and Skill checks
+├── assets/                       # Paper figure used in this README
+├── data/v1/                      # Public 900-pair task corpus
+├── docs/                         # Method, schema, provider, and security docs
+├── examples/                     # Synthetic TaskCase
+├── schemas/                      # Strict TaskCase JSON Schema
+├── scripts/                      # Run, export, validate, and Skill utilities
+├── src/change2task/              # Complete Change2Task implementation
+├── tests/                        # Model-free local Git tests
+├── AGENTS.md
+├── CITATION.cff
+├── Makefile
+└── pyproject.toml
+```
+
+## Development
+
+```bash
+make install-dev
+make validate
+```
+
+Public CI is model-free and network-free after dependency installation. Tests
+use synthetic local Git repositories; the public corpus validator checks
+schema, counts, hashes, patches, provenance, privacy gates, and license gates.
+
+## Security
+
+`TaskCase` is trusted executable input: it can declare commands and environment
+variables. Run third-party cases in a disposable sandbox without production
+credentials. Raw model I/O and command-output capture are disabled by default.
+
+Read [Security and trusted inputs](./docs/security-and-trusted-inputs.md) before
+running external cases.
+
+## Citation
 
 ```bibtex
-@article{li2026repolaunch,
-  title={RepoLaunch: Automating Build and Management of Code Repositories across Languages and Platforms},
-  author={Kenan Li and Rongzhi Li and Linghao Zhang and Qirui Jin and Liao Zhu and Xiaosong Huang and Geng Zhang and Yikai Zhang and Shilin He and Chengxing Xie and Xin Zhang and Zijian Jin and Bowen Li and Chaoyun Zhang and Yu Kang and Yufan Huang and Elsie Nallipogu and Saravan Rajmohan and Qingwei Lin and Dongmei Zhang},
-  journal={arXiv preprint arXiv:2603.05026},
-  year={2026}
+@article{qi2026change2task,
+  title   = {Change2Task: From Repository Changes to Executable Coding Agent Tasks and Environments},
+  author  = {Haomin Qi and Xingliang Wang and Xuanqi Gao and Baihui Sang and Xin Zhang and Minghua Ma and Pengfei Gao and Yu Kang and Qingwei Lin and Saravan Rajmohan and Dongmei Zhang and Qi Zhang},
+  journal = {arXiv preprint arXiv:2607.28591},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2607.28591}
 }
 ```
 
-## Trademarks
+## License
 
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft
-trademarks or logos is subject to and must follow
-[Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/legal/intellectualproperty/trademarks/usage/general).
-Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
-Any use of third-party trademarks or logos are subject to those third-party's policies.
+Change2Task-authored code and metadata are released under the
+[MIT License](./LICENSE). Third-party task material retains its benchmark and
+upstream repository terms; see
+[`data/v1/THIRD_PARTY_NOTICES.md`](./data/v1/THIRD_PARTY_NOTICES.md).

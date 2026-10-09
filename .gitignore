@@ -1,22 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
 
-#env
-venv
-build**
-.python-version
+# Environments and local configuration
+.env
+.venv/
+venv/
 
-#log
-log**
-**egg-info**
-**__pycache__
-.cache/
+# Change2Task runtime state
+.change2task/
 
-#key
-**tokens
-cloudgpt**
+# Tests and tooling
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
-#playground
-**playground**
-
-#data
-data**
-
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

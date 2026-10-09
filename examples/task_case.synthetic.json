@@ -1,0 +1,81 @@
+{
+  "schema_version": "change2task.workflow.v2",
+  "freeze_id": "synthetic-example-v1",
+  "case_id": "SYNTHETIC_WIDGET_BUG_001",
+  "family": "bug_fix",
+  "repository": "example/widgets",
+  "source_collection": "synthetic",
+  "source_case_id": "widget-enabled-fix",
+  "source_request": "Fix Widget.enabled() so an available widget reports true.",
+  "source_patch": "diff --git a/src/widget.py b/src/widget.py\nindex 1111111..2222222 100644\n--- a/src/widget.py\n+++ b/src/widget.py\n@@ -1,2 +1,2 @@\n def enabled():\n-    return False\n+    return True\n",
+  "source_commit": "1111111111111111111111111111111111111111",
+  "modern_commit": "2222222222222222222222222222222222222222",
+  "task_statement": "Restore the expected enabled behavior without changing unrelated APIs.",
+  "modern_host_files": [
+    "src/widget.py"
+  ],
+  "allowed_paths": [
+    "src/widget.py"
+  ],
+  "source_target_check_ids": [
+    "historical-widget-enabled"
+  ],
+  "source_regression_check_ids": [
+    "historical-widget-regression"
+  ],
+  "target_checks": [
+    {
+      "check_id": "widget-enabled",
+      "kind": "target",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "tests/test_widget.py",
+        "-q"
+      ],
+      "description": "Widget.enabled() has the expected behavior."
+    }
+  ],
+  "regression_checks": [
+    {
+      "check_id": "widget-regression",
+      "kind": "regression",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "tests/test_regression.py",
+        "-q"
+      ],
+      "description": "Adjacent widget behavior remains unchanged."
+    }
+  ],
+  "qualification_checks": [
+    {
+      "check_id": "widget-syntax",
+      "kind": "syntax",
+      "command": [
+        "python",
+        "-m",
+        "compileall",
+        "-q",
+        "src/widget.py"
+      ],
+      "description": "The candidate remains syntactically valid."
+    }
+  ],
+  "source_symbols": [
+    "enabled"
+  ],
+  "modern_symbols": [
+    "enabled"
+  ],
+  "call_chain": [
+    "widget.enabled"
+  ],
+  "metadata": {
+    "synthetic": true,
+    "note": "Replace all placeholder evidence before executing this example."
+  }
+}

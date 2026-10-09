@@ -1,0 +1,81 @@
+{
+  "artifact_availability": {
+    "embedded": 860,
+    "reference_only_license_restriction": 40
+  },
+  "challenge_apply_modes": {
+    "forward": 859,
+    "reverse": 1
+  },
+  "contains_agent_evaluation_results": false,
+  "contains_local_paths": false,
+  "contains_model_telemetry": false,
+  "dataset_version": "v1",
+  "family_counts": {
+    "api_migration": 100,
+    "bug_fix": 500,
+    "feature_addition": 100,
+    "security_repair": 100,
+    "test_generation": 100
+  },
+  "files": [
+    {
+      "bytes": 1010186,
+      "path": "task_pairs/api_migration.jsonl",
+      "records": 100,
+      "sha256": "3c784d96ce255452e3094b22e7becfee96dad2e74f0dfc7fa013a8cf9a476cd7"
+    },
+    {
+      "bytes": 12725836,
+      "path": "task_pairs/bug_fix.jsonl",
+      "records": 500,
+      "sha256": "6b4be2c32ab3c3c89bf000fb7e564f44c743199aec9c1ed2e4e67782de7bfe7a"
+    },
+    {
+      "bytes": 1876037,
+      "path": "task_pairs/feature_addition.jsonl",
+      "records": 100,
+      "sha256": "60323683c87aff44aa579abfea0b5d1dbba702531a942e1a677e8607ea151c67"
+    },
+    {
+      "bytes": 554068,
+      "path": "task_pairs/security_repair.jsonl",
+      "records": 100,
+      "sha256": "30e63195427c5e0dafe930460653ef201cd6be14ff178a74f1cf72d80eba7f68"
+    },
+    {
+      "bytes": 2563477,
+      "path": "task_pairs/test_generation.jsonl",
+      "records": 100,
+      "sha256": "89ee01d710890809c9ab76a4b4c493a90588fe6db381d82e61d5ab902ecf848b"
+    }
+  ],
+  "paper": "https://arxiv.org/abs/2607.28591",
+  "privacy_policy": {
+    "local_runtime_paths": "portable_placeholders",
+    "public_repository_patches": "preserved when a pinned-base license or project declaration was detected; otherwise reference-only",
+    "task_statement_emails": "redacted",
+    "task_statement_user_homes": "portable_placeholder"
+  },
+  "restoration_origins": {
+    "opposite_apply_mode_of_challenge_patch": 900
+  },
+  "schema_version": "change2task.public-dataset-manifest.v1",
+  "source_collection_counts": {
+    "fea_bench": 30,
+    "patcheval": 84,
+    "pymigbench": 100,
+    "swe_bench_lite": 16,
+    "swe_bench_live": 152,
+    "swe_bench_original": 189,
+    "swe_bench_plus_plus": 2,
+    "swe_bench_pro": 118,
+    "swe_bench_verified": 125,
+    "swe_rebench_v2": 68,
+    "vjbench": 1,
+    "vul4j": 15
+  },
+  "source_freeze_id": "frozen900_20260729",
+  "total_pairs": 900,
+  "unique_repository_slugs": 252
+}
