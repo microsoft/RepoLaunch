@@ -59,4 +59,5 @@ jobs:
         working-directory: methods/change2task
         run: |
           python scripts/validate_public_dataset.py data/v1
-          sha256sum -c data/v1/CHECKSUMS.sha256
+          cd data/v1
+          sha256sum -c CHECKSUMS.sha256
