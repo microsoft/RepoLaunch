@@ -1,49 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "repolaunch"
-version = "1.4.3"
-description = "RepoLaunch"
+name = "change2task"
+version = "0.2.0"
+description = "Convert historical repository changes into executable coding-agent tasks"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = [
+    "coding-agents",
+    "repository-history",
+    "software-engineering",
+    "task-construction",
+]
 dependencies = [
-    "beautifulsoup4>=4.13.4",
-    "docker>=7.1.0",
-    "fire>=0.7.0",
-    "gitpython>=3.1.44",
-    "langchain==0.3.26",
-    "langchain-community==0.3.27",
-    "langchain-core==0.3.68",
-    "litellm",
-    "langgraph==0.5.2",
-    "pydantic==2.11.7",
-    "requests>=2.32.4",
-    "rich>=14.0.0",
-    "tenacity>=9.1.2",
-    "tornado>=6.5.1",
-    "typing-extensions>=4.14.1",
-    "pygithub"
+    "pydantic>=2.0,<3.0",
+    "pydantic-settings>=2.0,<3.0",
+    "rich>=13.0,<15.0",
+    "structlog>=24.0,<26.0",
+    "typer>=0.12,<1.0",
+    "unidiff>=0.7,<1.0",
 ]
 
 [project.optional-dependencies]
-test = [
+dev = [
     "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
 ]
 
 [project.scripts]
-launch = "launch.run:main"
+change2task = "change2task.cli.app:app"
 
-[build-system]
-requires = ["setuptools>=64"]
-build-backend = "setuptools.build_meta"
+[project.urls]
+Homepage = "https://github.com/microsoft/RepoLaunch/tree/change2task"
+Paper = "https://arxiv.org/abs/2607.28591"
+Repository = "https://github.com/microsoft/RepoLaunch/tree/change2task"
+Dataset = "https://github.com/microsoft/RepoLaunch/tree/change2task/data/v1"
 
-[tool.setuptools.packages.find]
-include = ["launch", "launch.*"]
-namespaces = true
-
-[tool.setuptools.package-data]
-"launch.utilities" = ["dockerfiles/**/Dockerfile"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/change2task"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = [
-    "integration: exercises real Docker runtime workflows and may pull large images",
-]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]

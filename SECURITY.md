@@ -12,3 +12,10 @@ please review the latest guidance for Microsoft repositories at
 [https://aka.ms/SECURITY.md](https://aka.ms/SECURITY.md).
 
 <!-- END MICROSOFT SECURITY.MD BLOCK -->
+
+## Change2Task execution boundary
+
+Change2Task runs repository code and commands declared by `TaskCase`. Treat
+third-party cases as executable input and use a disposable sandbox without
+production credentials. See
+[Security and trusted inputs](docs/security-and-trusted-inputs.md).

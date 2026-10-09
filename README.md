@@ -1,221 +1,338 @@
-<h1 align="center">Change2Task</h1>
+<div align="center">
+
+# Change2Task
+
+### From Repository Changes to Executable Coding-Agent Tasks
+
+**Environment Engineering for Coding Agents · Chapter II**
+
+<p>
+  <a href="https://arxiv.org/abs/2607.28591">
+    <img alt="Paper" src="https://img.shields.io/badge/arXiv-2607.28591-B31B1B?style=for-the-badge&logo=arXiv">
+  </a>
+  <a href="https://github.com/microsoft/RepoLaunch/actions/workflows/ci.yml?query=branch%3Achange2task">
+    <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/microsoft/RepoLaunch/ci.yml?branch=change2task&style=for-the-badge&label=CI">
+  </a>
+  <a href="./data/v1">
+    <img alt="Dataset" src="https://img.shields.io/badge/Task_Pairs-900-2563EB?style=for-the-badge">
+  </a>
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white">
+  <a href="./LICENSE">
+    <img alt="License" src="https://img.shields.io/badge/Code-MIT-16A34A?style=for-the-badge">
+  </a>
+</p>
+
+<p>
+  Turn merged pull requests and repository evolution into grounded,
+  executable tasks on healthy modern revisions.
+</p>
+
+</div>
 
 <p align="center">
-  <strong>Environment Engineering for Coding Agents · Chapter II</strong>
+  <img
+    src="./assets/change2task-workflow.png"
+    alt="Change2Task workflow: evidence, modern base, task construction, and lifecycle validation"
+    width="100%"
+  >
 </p>
 
 <p align="center">
-  <em>From repository changes to executable coding-agent tasks and environments</em>
+  <sub>Change2Task workflow from the paper: historical evidence → modern base → L1/L2/L3 construction → H/C/R validation.</sub>
 </p>
 
-<p align="center">
-  <a href="https://arxiv.org/abs/2607.28591"><img alt="Paper" src="https://img.shields.io/badge/arXiv-2607.28591-B31B1B?style=for-the-badge&logo=arXiv"></a>&nbsp;
-  <a href="methods/change2task/README.md"><img alt="Method" src="https://img.shields.io/badge/Method-Code-2563EB?style=for-the-badge"></a>&nbsp;
-  <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white">&nbsp;
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge"></a>
-</p>
+---
 
-## The second chapter
+## Why Change2Task?
 
-RepoLaunch established the first chapter of environment engineering for coding
-agents: make a real repository buildable, testable, and reusable. Change2Task is
-the sequel. It starts from an executable repository environment and asks the
-next question:
+An executable coding-agent task is more than an issue description. It needs a
+specific repository state, a realistic objective, development tools, protected
+behavior, and a verifier that distinguishes success from plausible-looking
+failure.
 
-> How can repository evolution be converted into realistic, verifiable coding
-> tasks on healthy modern revisions?
+Change2Task treats repository history as reusable task evidence. It transfers a
+historical maintenance change onto a runnable modern revision, constructs a
+challenge state, and verifies the complete lifecycle:
 
-Change2Task turns historical software changes into task states, restoration
-patches, and executable verification contracts. Its focus is not environment
-bootstrapping; it is the systematic construction of grounded coding-agent work
-inside environments that already run.
-
-## What Change2Task produces
-
-For each normalized historical change, Change2Task builds a paired lifecycle:
-
-- **Healthy state (`H`)** — the pinned modern revision passes target and
-  protected regression checks.
-- **Challenge state (`C`)** — the reconstructed task condition causes target
-  checks to fail while protected behavior remains intact.
-- **Restored state (`R`)** — the restoration patch returns the repository to a
-  passing state.
-
-An accepted task includes:
-
-- a task statement grounded in developer evidence;
-- a minimal task-state patch;
-- a forward restoration patch;
-- explicit target and regression checks;
-- scope, fidelity, qualification, and lifecycle evidence;
-- append-only construction records with sensitive output capture disabled by
-  default.
-
-## Public task corpus
-
-The release includes the paper's
-[`900 paired task cases`](methods/change2task/data/v1):
-
-- 500 Bug Fix pairs;
-- 100 Feature Addition pairs;
-- 100 Test Generation pairs;
-- 100 API Migration pairs;
-- 100 Security Repair pairs.
-
-Every record contains the historical task provenance and the reconstructed
-modern task definition. Local artifact paths have been materialized, task text
-has been privacy-sanitized, and checksums cover the complete release.
-Patch content is embedded for 860 records. Forty records remain reference-only
-because of missing upstream licenses, Business Source License terms, or source
-dataset redistribution restrictions.
-
-The corpus contains task data only. It excludes coding-agent outputs,
-solved/unsolved results, model identities, token usage, timing, cost, resource
-telemetry, agreement statistics, and RQ summaries.
-
-## Construction pipeline
-
-```mermaid
-flowchart LR
-    A[Historical change + modern host] --> B[Normalized TaskCase]
-    B --> C[L1: Patch Reversal]
-    C --> G{Shared gates}
-    G -->|pass| O[Executable task]
-    G -->|fail| D[L2: Code Mapping]
-    D --> H{Shared gates}
-    H -->|pass| O
-    H -->|fail| E[L3: Agent Reconstruction]
-    E --> I{Shared gates}
-    I -->|pass| O
-    I -->|structured feedback<br/>max 4 attempts| E
-    I -->|exhausted| X[Explicit failure]
+```text
+Healthy H  ──task patch──▶  Challenge C  ──restoration──▶  Restored H′
+ target ✓                    target ✗                         target ✓
+ regression ✓                regression ✓                     regression ✓
 ```
 
-### L1 — Patch Reversal
+RepoLaunch established the first chapter of environment engineering: making
+repositories buildable and testable. Change2Task is the sequel: obtaining more
+verified coding-agent tasks from every maintained environment.
 
-Reverse-apply the historical forward patch when it still maps cleanly to the
-modern codebase.
+## What is included?
 
-### L2 — Code Mapping
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <strong>Construction pipeline</strong><br>
+      L1 Patch Reversal, L2 Code Mapping, and bounded L3 Agent Reconstruction
+      behind one shared acceptance contract.
+    </td>
+    <td width="33%" valign="top">
+      <strong>Five task families</strong><br>
+      Bug Fix, Feature Addition, Test Generation, API Migration, and Security
+      Repair.
+    </td>
+    <td width="33%" valign="top">
+      <strong>Public task corpus</strong><br>
+      900 provenance-linked task pairs from 252 public GitHub repositories and
+      12 benchmark sources.
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" valign="top">
+      <strong>Strict validation</strong><br>
+      Qualification, scope, fidelity, repeated H/C/R lifecycle, explicit
+      infrastructure failures, and append-only evidence.
+    </td>
+    <td width="33%" valign="top">
+      <strong>Agent-ready interface</strong><br>
+      A typed Python API, the <code>change2task</code> CLI, project Skill,
+      <code>AGENTS.md</code>, and one-command Skill installation.
+    </td>
+    <td width="33%" valign="top">
+      <strong>Release hygiene</strong><br>
+      Portable paths, privacy review, source provenance, pinned-base license
+      inventory, strict schema, and complete checksums.
+    </td>
+  </tr>
+</table>
 
-Locate a unique historical post-change block in the modern revision and map it
-back to its pre-change behavior. Ambiguous mappings fail explicitly.
+## Install
 
-### L3 — Agent Reconstruction
+### One-command setup: CLI + Agent Skill
 
-Use a pluggable coding-agent backend to reconstruct the unresolved maintenance
-condition. Every retry receives structured feedback from the same gates used
-for L1 and L2.
+```bash
+curl -fsSL \
+  https://raw.githubusercontent.com/microsoft/RepoLaunch/change2task/scripts/install.sh \
+  | bash
+```
 
-### Shared acceptance gates
+This creates an isolated environment under `~/.local/share/change2task`, links
+the CLI into `~/.local/bin`, and installs the Skill under
+`~/.cursor/skills/change2task`. It does not require `sudo`.
 
-Every candidate must pass the same sequence:
+### CLI and Python package
 
-1. clean patch application;
-2. syntax/build qualification;
-3. task-family scope and allowed-path enforcement;
-4. source-to-modern fidelity;
-5. repeated `H → C → R` lifecycle validation.
+```bash
+python -m pip install \
+  "git+https://github.com/microsoft/RepoLaunch.git@change2task"
+```
 
-Infrastructure errors, timeouts, unstable checks, empty patches, and exhausted
-attempts remain explicit failures.
+Verify:
 
-## Supported task families
+```bash
+change2task --help
+```
 
-- **Bug Fix** — reconstruct a historical defect on a modern host.
-- **Feature Addition** — remove or disable a capability to create its
-  implementation task.
-- **Test Generation** — construct an observable implementation failure while
-  keeping evaluation edits restricted to tests.
-- **API Migration** — reintroduce obsolete usage that must be migrated.
-- **Security Repair** — reconstruct vulnerable behavior under a bounded,
-  executable oracle.
+### Clone the standalone branch
 
-All five families share one construction core and define their own scope and
-behavior contracts through adapters.
+```bash
+git clone --branch change2task --single-branch \
+  https://github.com/microsoft/RepoLaunch.git Change2Task
+cd Change2Task
+python -m pip install -e ".[dev]"
+```
+
+## Install the Agent Skill
+
+Install the Change2Task Skill into `~/.cursor/skills/change2task`:
+
+```bash
+curl -fsSL \
+  https://raw.githubusercontent.com/microsoft/RepoLaunch/change2task/scripts/install_skill.sh \
+  | bash
+```
+
+The repository also ships the project-local Skill at
+[`.cursor/skills/change2task`](./.cursor/skills/change2task) and a generic
+[`AGENTS.md`](./AGENTS.md), so compatible agents can discover the workflow
+without copying instructions from the README.
+
+Then ask an agent:
+
+```text
+Use the change2task skill to validate this TaskCase and construct it against
+/path/to/repository. Keep the worktree isolated and report the accepted level
+or explicit terminal failure.
+```
 
 ## Quick start
 
-```bash
-git clone --branch change2task https://github.com/microsoft/RepoLaunch.git
-cd RepoLaunch/methods/change2task
-
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[dev]"
-cp .env.example .env
-```
-
-Generate the strict input schema:
+### 1. Generate the strict input schema
 
 ```bash
 change2task case-schema --output schemas/task-case.schema.json
 ```
 
-Validate a normalized case without executing repository commands:
+### 2. Start from the synthetic example
 
 ```bash
-change2task validate-case examples/task_case.synthetic.json
+cp examples/task_case.synthetic.json /tmp/my-case.json
 ```
 
-Run the complete cascade against an existing checkout containing the pinned
-modern commit:
+Replace the placeholder repository, commits, historical patch, modern behavior
+hosts, allowed paths, target checks, and regression checks.
+
+### 3. Validate without executing repository commands
 
 ```bash
-change2task build-case path/to/case.json \
+change2task validate-case /tmp/my-case.json
+```
+
+### 4. Construct and verify the task
+
+```bash
+change2task build-case /tmp/my-case.json \
   --repository-cache /path/to/repository \
   --output .change2task/outcome.json
 ```
 
-Claude Code is required only when a case reaches L3. The L3 backend is
-replaceable through the public `ConstructionAgentBackend` protocol.
+The checkout must contain the exact `modern_commit` declared by the case.
+Change2Task creates a detached case-specific worktree and removes it after the
+run unless `--keep-worktree` is requested.
 
-## Public interfaces
+## Construction contract
 
-| Interface | Purpose |
-|---|---|
-| `change2task case-schema` | Emit the normalized `TaskCase` JSON Schema |
-| `change2task validate-case` | Validate a case without running its commands |
-| `change2task build-case` | Execute L1 → L2 → bounded L3 and all shared gates |
-| `TaskCase` / `TaskFamily` | Strict Python input contracts |
-| `CaseBuilder` | Programmatic construction orchestrator |
-| `ConstructionAgentBackend` | Extension point for an L3 coding agent |
+### L1 · Patch Reversal
 
-The release implementation lives in
-[`methods/change2task`](methods/change2task).
+Reverse-apply the historical forward patch when it still maps cleanly onto the
+modern revision.
 
-## Documentation
+### L2 · Code Mapping
 
-- [Method and acceptance gates](methods/change2task/docs/method.md)
-- [TaskCase input contract](methods/change2task/docs/task-case-schema.md)
-- [L3 provider configuration](methods/change2task/docs/provider-configuration.md)
-- [Security and trusted inputs](methods/change2task/docs/security-and-trusted-inputs.md)
-- [Machine-readable TaskCase schema](methods/change2task/schemas/task-case.schema.json)
-- [Public 900-pair task corpus](methods/change2task/data/v1)
-- [Dataset provenance and license registry](methods/change2task/data/v1/sources.json)
-- [Public-release privacy and integrity audit](methods/change2task/data/v1/AUDIT.md)
+Map a unique historical post-change block back to its pre-change behavior.
+Ambiguous mappings and unsupported pure additions/deletions fail explicitly.
 
-## Release scope
+### L3 · Agent Reconstruction
 
-This branch publishes the reusable method implementation and the sanitized
-900-pair public task corpus. It intentionally does **not** contain coding-agent
-evaluation outputs, run directories, model transcripts, route receipts, token
-logs, statistical summaries, paper tables, or internal operational state.
+Invoke a pluggable coding-agent backend only after deterministic routes fail.
+The backend edits an isolated worktree and can receive structured feedback from
+failed gates for at most four attempts.
 
-Public CI is model-free and network-free. Tests use synthetic local Git
-repositories and exercise the CLI, deterministic construction, validation
-gates, schema stability, and packaging.
+### Shared gates
+
+Every candidate, regardless of level, must pass:
+
+1. clean patch application;
+2. syntax/build qualification;
+3. task-family scope and explicit allowed paths;
+4. six-component source-to-modern fidelity;
+5. repeated healthy/challenge/restored lifecycle validation.
+
+No construction level receives a weaker acceptance definition.
+
+## Public 900-pair corpus
+
+The release lives in [`data/v1`](./data/v1):
+
+```text
+data/v1/
+├── task_pairs/
+│   ├── bug_fix.jsonl                 # 500
+│   ├── feature_addition.jsonl        # 100
+│   ├── test_generation.jsonl         # 100
+│   ├── api_migration.jsonl           # 100
+│   └── security_repair.jsonl         # 100
+├── manifest.json
+├── schema.json
+├── sources.json
+├── repository_licenses.json
+├── AUDIT.md
+├── THIRD_PARTY_NOTICES.md
+└── CHECKSUMS.sha256
+```
+
+- **900/900 unique pair IDs**
+- **252 public repository slugs**
+- **12 public benchmark collections/releases**
+- **860 embedded executable task records**
+- **40 reference-only records gated by upstream licensing or redistribution
+  terms**
+
+The corpus contains task definitions only. It excludes agent answers,
+solved/unsolved outcomes, model identities, prompts and responses, token usage,
+timing, cost, CPU/RSS/disk telemetry, agreement statistics, RQ summaries,
+receipts, and checkpoints.
+
+Validate it:
+
+```bash
+python scripts/validate_public_dataset.py data/v1
+(cd data/v1 && sha256sum -c CHECKSUMS.sha256)
+```
+
+Read the [dataset card](./data/v1/README.md),
+[release audit](./data/v1/AUDIT.md), and
+[third-party notices](./data/v1/THIRD_PARTY_NOTICES.md) before redistribution
+or model training.
+
+## Python API
+
+```python
+from pathlib import Path
+
+from change2task.workflow.construction import CaseBuilder
+from change2task.workflow.ledger import ConstructionLedger
+from change2task.workflow.models import TaskCase
+
+case = TaskCase.model_validate_json(Path("case.json").read_text())
+ledger = ConstructionLedger(Path(".change2task/ledger"))
+
+builder = CaseBuilder(
+    repository_cache=Path("/path/to/repository"),
+    worktrees_root=Path(".change2task/worktrees"),
+    ledger=ledger,
+)
+```
+
+Implement `ConstructionAgentBackend.run(...)` and pass it to `CaseBuilder` to
+use a different L3 coding agent.
+
+## Repository layout
+
+```text
+.
+├── .cursor/skills/change2task/   # Auto-discoverable Agent Skill
+├── .github/workflows/ci.yml      # Method, package, data, and Skill checks
+├── assets/                       # Paper figure used in this README
+├── data/v1/                      # Public 900-pair task corpus
+├── docs/                         # Method, schema, provider, and security docs
+├── examples/                     # Synthetic TaskCase
+├── schemas/                      # Strict TaskCase JSON Schema
+├── scripts/                      # Run, export, validate, and Skill utilities
+├── src/change2task/              # Complete Change2Task implementation
+├── tests/                        # Model-free local Git tests
+├── AGENTS.md
+├── CITATION.cff
+├── Makefile
+└── pyproject.toml
+```
+
+## Development
+
+```bash
+make install-dev
+make validate
+```
+
+Public CI is model-free and network-free after dependency installation. Tests
+use synthetic local Git repositories; the public corpus validator checks
+schema, counts, hashes, patches, provenance, privacy gates, and license gates.
 
 ## Security
 
-`TaskCase` files are trusted executable input because they define commands.
-Run third-party cases inside a disposable sandbox without production
-credentials. Raw prompts, agent responses, stdout, and stderr are not persisted
-unless explicitly enabled.
+`TaskCase` is trusted executable input: it can declare commands and environment
+variables. Run third-party cases in a disposable sandbox without production
+credentials. Raw model I/O and command-output capture are disabled by default.
 
-## Maintainer
-
-[HarminChee](https://github.com/HarminChee)
+Read [Security and trusted inputs](./docs/security-and-trusted-inputs.md) before
+running external cases.
 
 ## Citation
 
@@ -231,4 +348,7 @@ unless explicitly enabled.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Change2Task-authored code and metadata are released under the
+[MIT License](./LICENSE). Third-party task material retains its benchmark and
+upstream repository terms; see
+[`data/v1/THIRD_PARTY_NOTICES.md`](./data/v1/THIRD_PARTY_NOTICES.md).

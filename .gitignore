@@ -1,38 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
 
-#env
-venv
-build**
-.python-version
+# Environments and local configuration
+.env
+.venv/
+venv/
 
-#log
-log**
-**egg-info**
-**__pycache__
-.cache/
+# Change2Task runtime state
+.change2task/
 
-#key
-**tokens
-cloudgpt**
+# Tests and tooling
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
-#playground
-**playground**
-
-#data
-data**
-
-# Change2Task local runtime state
-methods/change2task/.env
-methods/change2task/.venv/
-methods/change2task/.change2task/
-methods/change2task/dist/
-methods/change2task/.pytest_cache/
-methods/change2task/.ruff_cache/
-
-# Required Change2Task modules shadowed by the broad build** / log** rules above.
-!methods/change2task/src/pr_injector/cli/build_case_cmd.py
-!methods/change2task/src/pr_injector/core/logging.py
-!methods/change2task/scripts/build_repository_license_inventory.py
-
-# Public Change2Task task corpus.
-!methods/change2task/data/
-!methods/change2task/data/**
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
