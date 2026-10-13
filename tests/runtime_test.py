@@ -41,6 +41,7 @@ index 0000000..7a754f4
 
 import os
 import platform as host_platform
+from types import SimpleNamespace
 import warnings
 
 import docker
@@ -168,6 +169,25 @@ def test_runtime_constructor_attributes(runtime_cls, expected_attrs, patch_runti
     finally:
         runtime.stopped = True
 
+
+
+def test_linux_runtime_uses_posix_path_for_mounted_patch(monkeypatch, tmp_path):
+    runtime = LinuxRuntime.__new__(LinuxRuntime)
+    runtime.stopped = True
+    runtime.mnt_host = str(tmp_path)
+    runtime.mnt_container = "/mnt_tmp"
+    commands = []
+
+    def send_command(command, timeout=None):
+        commands.append(command)
+        return SimpleNamespace(metadata=SimpleNamespace(exit_code=0), output="")
+
+    monkeypatch.setattr(runtime, "send_command", send_command)
+    assert runtime.apply_patch("diff --git a/a b/a\n") is True
+    assert commands[0].startswith("git apply")
+    assert "/mnt_tmp/" in commands[0]
+    assert "\\" not in commands[0]
+    assert commands[1].startswith("rm /mnt_tmp/")
 
 
 def supported_integration_platforms() -> set[str]:
