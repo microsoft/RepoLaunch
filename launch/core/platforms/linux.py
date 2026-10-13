@@ -26,6 +26,7 @@ import uuid
 import docker
 from docker.models.containers import Container
 
+
 class LinuxRuntime(BaseRuntime):
 
     def __init__(
@@ -205,9 +206,13 @@ class LinuxRuntime(BaseRuntime):
 
         filename = f"{uuid.uuid4()}.diff"
         hostpath = os.path.join(self.mnt_host, filename)
-        with open(hostpath, "w") as f:
-            f.write(patch)
-        containerpath =  os.path.join(self.mnt_container, filename)
+        # Patch text may originate from a Windows-hosted model output. Keep
+        # the mounted file UTF-8 and LF-only so Linux git apply sees stable
+        # patch context bytes inside the evaluation container.
+        normalized_patch = patch.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
+        with open(hostpath, "w", encoding="utf-8", newline="\n") as f:
+            f.write(normalized_patch)
+        containerpath = os.path.join(self.mnt_container, filename)
         
         cmd = f"""git apply --reject  --whitespace=nowarn  {containerpath} """
         res = self.send_command(cmd)

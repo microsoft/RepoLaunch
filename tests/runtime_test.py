@@ -41,6 +41,7 @@ index 0000000..7a754f4
 
 import os
 import platform as host_platform
+from types import SimpleNamespace
 import warnings
 
 import docker
@@ -168,6 +169,26 @@ def test_runtime_constructor_attributes(runtime_cls, expected_attrs, patch_runti
     finally:
         runtime.stopped = True
 
+
+
+def test_linux_runtime_writes_utf8_lf_patch_without_bom(monkeypatch, tmp_path):
+    runtime = LinuxRuntime.__new__(LinuxRuntime)
+    runtime.stopped = True
+    runtime.mnt_host = str(tmp_path)
+    runtime.mnt_container = "/mnt_tmp"
+
+    def send_command(command, timeout=None):
+        return SimpleNamespace(metadata=SimpleNamespace(exit_code=0), output="")
+
+    monkeypatch.setattr(runtime, "send_command", send_command)
+    patch = "\ufeffdiff --git a/a b/a\r\n--- a/a\r\n+++ b/a\r\n"
+    assert runtime.apply_patch(patch) is True
+
+    patch_files = list(tmp_path.glob("*.diff"))
+    assert len(patch_files) == 1
+    assert patch_files[0].read_bytes() == (
+        b"diff --git a/a b/a\n--- a/a\n+++ b/a\n"
+    )
 
 
 def supported_integration_platforms() -> set[str]:
