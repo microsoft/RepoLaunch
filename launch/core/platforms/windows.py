@@ -17,12 +17,19 @@ from launch.core.platforms.base import (
 from launch.core.platforms.linux import LinuxRuntime
 
 import os
+import time
 from typing import Any
 import queue
+import threading
 import uuid
 
 import docker
 from docker.models.containers import Container
+
+
+# Bound recovery after Docker externally destroys a Windows task container
+# without changing normal command-timeout semantics.
+WINDOWS_EXEC_LIVENESS_POLL_SECONDS = 5.0
 
 
 class WindowsRuntime(LinuxRuntime):
@@ -76,50 +83,243 @@ function prompt {
   Write-Output "###PS1END###"
   "PS $wd> "
 }
+
 ''')
         self.preparation_commands = []
 
-    def send_command(self, command: str, timeout: int|None = None) -> CommandResult:
-        '''
-        timeout: deprecated arg for backward compatibility. In minute. If not specified use self.timeout from object inittialization.
-        '''
-        timeout = self.command_timeout * 60 if timeout is None else timeout * 60 # in seconds
+    def _container_liveness_diagnostic(self) -> str | None:
+        """Return a bounded diagnostic only for a Docker-confirmed lost container."""
+        try:
+            self.container.reload()
+            state = getattr(self.container, "attrs", {}).get("State", {}) or {}
+            if bool(state.get("Running")):
+                return None
+            status = str(state.get("Status") or "unknown")
+            exit_code = state.get("ExitCode")
+            suffix = f" exit_code={exit_code}" if exit_code is not None else ""
+            return f"Windows task container is no longer running (status={status}{suffix})."
+        except docker.errors.NotFound:
+            return "Windows task container no longer exists in Docker."
+        except docker.errors.APIError:
+            return None
+        except Exception:
+            return None
 
-        if self.stopped:
-            raise RuntimeError("container is stopped. Currently we have not enabled container restart after docker commit. If you need to restore the container you must launch from the new image you committed.")
-
-        # Normalize newline semantics for interactive shells
-        # For PowerShell, ensure CRLF line endings
-        command = command.strip().replace("\r\n", "\n").replace("\n", "\r\n")
-        # Add extra CRLF for multi-line blocks to signal completion
-        command += "\r\n\r\nprompt\r\n\r\n"
-
-        self._clear_initial_prompt()
-
-        self._send_bytes(command.encode())
-
-        output, metadata = self._read_raw_output(timeout=timeout)
-        if metadata is not None:
-            return CommandResult(output=output, metadata=metadata)
-
-        # handle timeout
-        # to kill the task completely, should Ctrl^C for several times
-        for _ in range(10):
-            self._send_bytes(b"\x03")
-
-        kill_timeout = 5
-        kill_output, kill_metadata = self._read_raw_output(timeout=kill_timeout)
-
-        output = output + kill_output + "\n**Exited due to timeout**\n"
-        if kill_metadata is not None:
-            kill_metadata.exit_code = TIMEOUT_EXIT_CODE
-            return CommandResult(output=output, metadata=kill_metadata)
-
-        fallback_metadata = CmdOutputMetadata(
-            exit_code=TIMEOUT_EXIT_CODE,
+    def _container_liveness_result(self, diagnostic: str) -> CommandResult:
+        """Return a non-timeout sentinel for a Docker-confirmed lost container."""
+        self.stopped = True
+        return CommandResult(
+            output=(
+                "\n**Windows container execution became unavailable before Docker "
+                f"returned a command result: {diagnostic}**\n"
+            ),
+            metadata=CmdOutputMetadata(
+                exit_code=125,
+                username=None,
+                hostname=None,
+                working_dir=self.working_dir,
+                py_interpreter_path=None,
+            ),
         )
 
-        return CommandResult(output=output, metadata=fallback_metadata)
+    def send_command(self, command: str, timeout: int|None = None) -> CommandResult:
+        """Execute a command through Docker's non-interactive exec API.
+
+        Windows containers expose a ConPTY when started with ``tty=True``.  The
+        old persistent attach path could leave long-running commands in an idle
+        PowerShell prompt and only produced zero-byte capture files.  Direct
+        ``exec_run`` avoids ConPTY and returns the command output as a normal
+        process result while keeping the existing runtime API unchanged.
+        """
+        timeout_seconds = self.command_timeout * 60 if timeout is None else timeout * 60
+
+        if self.stopped:
+            raise RuntimeError(
+                "container is stopped. Currently we have not enabled container restart after docker commit. "
+                "If you need to restore the container you must launch from the new image you committed."
+            )
+
+        import json
+        command_name = f"windows-command-{uuid.uuid4().hex}.ps1"
+        command_host_path = os.path.join(self.mnt_host, command_name)
+        command_guest_path = f"C:\\mnt_tmp\\{command_name}"
+        # Each exec is a fresh PowerShell process, so make the runtime working
+        # directory explicit rather than relying on persistent shell state.
+        script = (
+            "Set-Location -LiteralPath 'C:\\testbed'\n"
+            + "$OutputEncoding = [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)\n"
+            + "$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'\n"
+            + command
+            + "\n"
+            + "$__slai_ec = if ($LASTEXITCODE -ne $null) { [int]$LASTEXITCODE } elseif ($?) { 0 } else { 1 }\n"
+            + "Write-Output '###PS1JSON###'\n"
+            + "$__slai_obj=[ordered]@{exit_code=$__slai_ec; username=$env:USERNAME; "
+            + "hostname=$env:COMPUTERNAME; working_dir=(Get-Location).Path; py_interpreter_path=''}\n"
+            + "$__slai_obj | ConvertTo-Json -Compress\n"
+            + "Write-Output '###PS1END###'\n"
+        )
+        os.makedirs(self.mnt_host, exist_ok=True)
+        with open(command_host_path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(script)
+
+        try:
+            # Docker SDK exec_run() has no timeout parameter. Run the blocking
+            # request in a daemon worker so this runtime's existing command
+            # deadline remains enforceable. On expiry, destroy the isolated
+            # evaluation container; that is the same cancellation boundary used
+            # by the interactive fallback when Ctrl-C cannot restore a prompt.
+            execution: dict[str, Any] = {}
+            completed = threading.Event()
+
+            def run_exec() -> None:
+                try:
+                    execution["result"] = self.container.exec_run(
+                        [
+                            "powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive",
+                            "-ExecutionPolicy", "Bypass", "-File", command_guest_path,
+                        ],
+                        workdir=self.working_dir,
+                        stdout=True,
+                        stderr=True,
+                        demux=False,
+                    )
+                except BaseException as exc:
+                    execution["error"] = exc
+                finally:
+                    completed.set()
+
+            worker = threading.Thread(
+                target=run_exec,
+                name="windows-runtime-exec",
+                daemon=True,
+            )
+            worker.start()
+            worker_detached = False
+            deadline = time.monotonic() + timeout_seconds
+            while not completed.is_set():
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                completed.wait(timeout=min(remaining, WINDOWS_EXEC_LIVENESS_POLL_SECONDS))
+                if completed.is_set():
+                    break
+                diagnostic = self._container_liveness_diagnostic()
+                if diagnostic is not None:
+                    worker_detached = True
+                    return self._container_liveness_result(diagnostic)
+
+            if not completed.is_set():
+                timeout_output = "\n**Exited due to timeout**\n"
+                try:
+                    self.container.kill()
+                except Exception as exc:
+                    timeout_output += f"Container kill after timeout failed: {exc}\n"
+                try:
+                    self.container.remove(force=True)
+                except Exception as exc:
+                    timeout_output += f"Container removal after timeout failed: {exc}\n"
+                self.stopped = True
+                # Keep the established timeout contract: the container was
+                # deliberately killed/removed, so its mounted command file may
+                # be removed immediately. Deferred cleanup is only for a
+                # container already lost externally while exec_run unwinds.
+                worker_detached = False
+                return CommandResult(
+                    output=timeout_output,
+                    metadata=CmdOutputMetadata(exit_code=TIMEOUT_EXIT_CODE),
+                )
+
+            if "error" in execution:
+                diagnostic = self._container_liveness_diagnostic()
+                if diagnostic is not None:
+                    return self._container_liveness_result(diagnostic)
+                raise execution["error"]
+            result = execution["result"]
+            raw_output = result.output
+            if isinstance(raw_output, tuple):
+                raw_output = (raw_output[0] or b"") + (raw_output[1] or b"")
+            raw_bytes = raw_output or b""
+            # Windows PowerShell redirection uses UTF-16LE by default. Decode
+            # the BOM-marked stream before stripping ANSI/control characters;
+            # UTF-8 replacement turns every second byte into NULs and makes the
+            # Go JSONL parser silently lose the test records.
+            if raw_bytes.startswith((b"\xff\xfe", b"\xfe\xff")):
+                output = raw_bytes.decode("utf-16", errors="replace")
+            else:
+                output = raw_bytes.decode("utf-8", errors="replace")
+            output = ANSI_ESCAPE.sub("", output).replace("\r", "")
+            matches = CmdOutputMetadata.matches_ps1_metadata(output)
+            metadata = CmdOutputMetadata.from_ps1_match(matches[-1]) if matches else None
+            if metadata is not None:
+                output = output[:matches[-1].start()]
+            else:
+                exit_code = result.exit_code
+                if exit_code is None:
+                    exit_code = TIMEOUT_EXIT_CODE if timeout_seconds <= 0 else 1
+                metadata = CmdOutputMetadata(
+                    exit_code=int(exit_code),
+                    username=None,
+                    hostname=None,
+                    working_dir=self.working_dir,
+                    py_interpreter_path=None,
+                )
+            return CommandResult(output=output, metadata=metadata)
+        finally:
+            # A blocked Docker SDK worker can outlive this method after loss or
+            # deadline recovery. Keep its mounted script until it unwinds.
+            if "worker_detached" in locals() and worker_detached:
+                def _remove_when_exec_finishes() -> None:
+                    completed.wait()
+                    try:
+                        os.remove(command_host_path)
+                    except OSError:
+                        pass
+
+                threading.Thread(
+                    target=_remove_when_exec_finishes,
+                    name="windows-runtime-script-cleanup",
+                    daemon=True,
+                ).start()
+            else:
+                try:
+                    os.remove(command_host_path)
+                except OSError:
+                    pass
+
+    def apply_patch(self, patch: str, verbose: bool = False) -> bool:
+        """Apply a unified diff using a native Windows container path."""
+        output_temp = "\n\n<<<<<<PATCH FAILED TO APPLY CLEANLY\n{out}\n>>>>>>\n\n"
+        filename = f"{uuid.uuid4()}.diff"
+        hostpath = os.path.join(self.mnt_host, filename)
+        guestpath = f"C:\\mnt_tmp\\{filename}"
+        os.makedirs(self.mnt_host, exist_ok=True)
+        with open(hostpath, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(patch)
+        try:
+            # LinuxRuntime.apply_patch uses /mnt_tmp, which is invalid inside a
+            # Windows container.  Keep the same patch protocol but use the
+            # mounted Windows path explicitly.
+            res = self.send_command(
+                f"git apply --reject --whitespace=nowarn '{guestpath}'"
+            )
+            if (
+                int(res.metadata.exit_code) == 125
+                and "Windows container execution became unavailable before Docker returned a command result:" in (res.output or "")
+            ):
+                raise RuntimeError(res.output.strip())
+            ok = int(res.metadata.exit_code) == 0
+            if ok:
+                if verbose:
+                    print(f"git apply {guestpath} ---- Patch applied Successfully!", flush=True)
+                return True
+            if verbose:
+                print(output_temp.format(out=res.output), flush=True)
+            return False
+        finally:
+            try:
+                os.remove(hostpath)
+            except OSError:
+                pass
 
     @classmethod
     def _start_container(
