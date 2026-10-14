@@ -95,22 +95,35 @@ class LinuxRuntime(BaseRuntime):
         '''
         timeout: in seconds
         '''
-        
-        accumulated_output = ""
+
+        # Do not repeatedly normalize and regex-scan the complete PTY transcript
+        # after every chunk. Large build/test commands can emit tens of megabytes;
+        # rescanning the growing string turns one command read into quadratic host
+        # work after the command itself has already completed.
+        output_chunks: list[str] = []
+        prompt_probe = ""
+        prompt_end = CMD_OUTPUT_PS1_END.strip()
         start_time = time.time()
 
         while time.time() - start_time < timeout:
             try:
                 chunk = self.output_queue.get(timeout=0.1)
-                accumulated_output += chunk.decode("utf-8", errors="ignore")
-                # PSReadLine injects ANSI + cursor control; normalize before matching
-                accumulated_clean = ANSI_ESCAPE.sub("", accumulated_output).replace("\r", "")
-                ps1_matches = CmdOutputMetadata.matches_ps1_metadata(accumulated_clean)
-                if ps1_matches:
+                normalized_chunk = ANSI_ESCAPE.sub(
+                    "", chunk.decode("utf-8", errors="ignore")
+                ).replace("\r", "")
+                output_chunks.append(normalized_chunk)
+
+                # The delimiter can straddle two socket reads, so retain only the
+                # short suffix needed to recognize it incrementally. Parse the
+                # complete metadata exactly once after the delimiter is observed.
+                prompt_probe += normalized_chunk
+                if prompt_end in prompt_probe:
                     break
+                prompt_probe = prompt_probe[-(len(prompt_end) - 1):]
             except queue.Empty:
                 continue
-        accumulated_output = ANSI_ESCAPE.sub("", accumulated_output).replace("\r", "")
+
+        accumulated_output = "".join(output_chunks)
         ps1_matches = CmdOutputMetadata.matches_ps1_metadata(accumulated_output)
         metadata = (
             CmdOutputMetadata.from_ps1_match(ps1_matches[-1]) if ps1_matches else None
