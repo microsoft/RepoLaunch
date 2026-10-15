@@ -16,15 +16,24 @@ from launch.core.platforms.base import (
     BaseRuntime
 )
 
-import os, json
+import json
+import os
+import posixpath
 from typing import Any, Optional
 import queue
+import shlex
 import threading
 import time
 import uuid
 
 import docker
 from docker.models.containers import Container
+
+
+def _container_mount_path(mount_path: str, filename: str) -> str:
+    """Build a path for a Linux container regardless of the host platform."""
+    return posixpath.join(mount_path, filename)
+
 
 class LinuxRuntime(BaseRuntime):
 
@@ -95,22 +104,35 @@ class LinuxRuntime(BaseRuntime):
         '''
         timeout: in seconds
         '''
-        
-        accumulated_output = ""
+
+        # Do not repeatedly normalize and regex-scan the complete PTY transcript
+        # after every chunk. Large build/test commands can emit tens of megabytes;
+        # rescanning the growing string turns one command read into quadratic host
+        # work after the command itself has already completed.
+        output_chunks: list[str] = []
+        prompt_probe = ""
+        prompt_end = CMD_OUTPUT_PS1_END.strip()
         start_time = time.time()
 
         while time.time() - start_time < timeout:
             try:
                 chunk = self.output_queue.get(timeout=0.1)
-                accumulated_output += chunk.decode("utf-8", errors="ignore")
-                # PSReadLine injects ANSI + cursor control; normalize before matching
-                accumulated_clean = ANSI_ESCAPE.sub("", accumulated_output).replace("\r", "")
-                ps1_matches = CmdOutputMetadata.matches_ps1_metadata(accumulated_clean)
-                if ps1_matches:
+                normalized_chunk = ANSI_ESCAPE.sub(
+                    "", chunk.decode("utf-8", errors="ignore")
+                ).replace("\r", "")
+                output_chunks.append(normalized_chunk)
+
+                # The delimiter can straddle two socket reads, so retain only the
+                # short suffix needed to recognize it incrementally. Parse the
+                # complete metadata exactly once after the delimiter is observed.
+                prompt_probe += normalized_chunk
+                if prompt_end in prompt_probe:
                     break
+                prompt_probe = prompt_probe[-(len(prompt_end) - 1):]
             except queue.Empty:
                 continue
-        accumulated_output = ANSI_ESCAPE.sub("", accumulated_output).replace("\r", "")
+
+        accumulated_output = "".join(output_chunks)
         ps1_matches = CmdOutputMetadata.matches_ps1_metadata(accumulated_output)
         metadata = (
             CmdOutputMetadata.from_ps1_match(ps1_matches[-1]) if ps1_matches else None
@@ -194,6 +216,18 @@ class LinuxRuntime(BaseRuntime):
             kill_metadata.exit_code = TIMEOUT_EXIT_CODE
             return CommandResult(output=output, metadata=kill_metadata)
 
+        # If Ctrl-C did not produce a prompt, the timed-out foreground process
+        # may still be running in this isolated evaluation container. Do not
+        # report a timeout while leaving that process alive: terminate the
+        # container so the command has a reliable cancellation boundary.
+        try:
+            self.container.kill()
+        finally:
+            try:
+                self.container.remove(force=True)
+            finally:
+                self.stopped = True
+
         fallback_metadata = CmdOutputMetadata(
             exit_code=TIMEOUT_EXIT_CODE,
         )
@@ -205,9 +239,13 @@ class LinuxRuntime(BaseRuntime):
 
         filename = f"{uuid.uuid4()}.diff"
         hostpath = os.path.join(self.mnt_host, filename)
-        with open(hostpath, "w") as f:
-            f.write(patch)
-        containerpath =  os.path.join(self.mnt_container, filename)
+        # Patch text may originate from a Windows-hosted model output.  Keep
+        # the mounted file byte-for-byte LF/UTF-8 so Linux git apply does not
+        # treat every context line as CRLF text inside the evaluation container.
+        normalized_patch = patch.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
+        with open(hostpath, "w", encoding="utf-8", newline="\n") as f:
+            f.write(normalized_patch)
+        containerpath = _container_mount_path(self.mnt_container, filename)
         
         cmd = f"""git apply --reject  --whitespace=nowarn  {containerpath} """
         res = self.send_command(cmd)
@@ -256,9 +294,7 @@ class LinuxRuntime(BaseRuntime):
             stdin_open=True,
             tty=True,
             detach=True,
-            environment={
-                "TERM": "xterm-mono",
-            },
+            environment={"TERM": "xterm-mono"},
             working_dir=working_dir,
             extra_hosts=extra_hosts,
             volumes={
@@ -274,6 +310,31 @@ class LinuxRuntime(BaseRuntime):
                     container, 
                     command_timeout=command_timeout,
                 )
+
+        # The task image is intentionally immutable. When the evaluator has an
+        # explicit snapshot clock, provision faketime before exporting it in the
+        # persistent shell so certificate/timestamp checks use that clock without
+        # changing normal tasks.  Export faketime only for test commands: keeping
+        # git, patch application, and rebuild tools on real filesystem timestamps
+        # prevents a snapshot-clock run from making generated binaries appear older
+        # than their patched sources and accidentally reusing a stale build.
+        evaluation_clock = os.environ.get("SWE_BENCH_LIVE_EVALUATION_CLOCK", "").strip()
+        if evaluation_clock:
+            faketime_library = "/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1"
+            setup_clock = (
+                f"if [ ! -f {shlex.quote(faketime_library)} ]; then "
+                "DEBIAN_FRONTEND=noninteractive apt-get update -qq && "
+                "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libfaketime || exit $?; "
+                "fi; "
+                f"export SWE_BENCH_LIVE_FAKETIME_LIBRARY={shlex.quote(faketime_library)}; "
+                f"export SWE_BENCH_LIVE_FAKETIME_VALUE={shlex.quote('@' + evaluation_clock)}; "
+                "swe_bench_live_with_clock() { "
+                "FAKETIME=$SWE_BENCH_LIVE_FAKETIME_VALUE "
+                "FAKETIME_DONT_RESET=1 FAKETIME_DONT_FAKE_MONOTONIC=1 "
+                "LD_PRELOAD=$SWE_BENCH_LIVE_FAKETIME_LIBRARY \"$@\"; "
+                "}"
+            )
+            session.send_command(setup_clock)
 
         return session
 
