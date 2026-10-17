@@ -4,6 +4,7 @@ import io
 import json
 import os
 import re
+import subprocess
 import tarfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -259,28 +260,61 @@ class BaseRuntime(ABC):
         return f"{image_name}:{tag}"
 
     @staticmethod
-    def pull_image(image_name: str) -> bool:
-        """
-        Pull Docker image from registry.
-        
-        Args:
-            image_name (str): Name of the Docker image to pull
-            
-        Returns:
-            bool: True if successful, False if image not found
-        """
-        client = docker.from_env(timeout=3600) # pull should finish in 1 hour
+    def _image_pull_timeout_seconds() -> int:
+        """Return a bounded image-pull deadline from the environment."""
+        value = os.getenv("REPOLAUNCH_IMAGE_PULL_TIMEOUT_SECONDS", "1800")
         try:
-            # Check if image exists locally
+            timeout = int(value)
+        except ValueError as exc:
+            raise ValueError(
+                "REPOLAUNCH_IMAGE_PULL_TIMEOUT_SECONDS must be a positive integer"
+            ) from exc
+        if timeout <= 0:
+            raise ValueError(
+                "REPOLAUNCH_IMAGE_PULL_TIMEOUT_SECONDS must be a positive integer"
+            )
+        return timeout
+
+    @staticmethod
+    def pull_image(image_name: str) -> bool:
+        """Ensure an image is local, with a terminal deadline for registry pulls."""
+        client = docker.from_env(timeout=30)
+        try:
             client.images.get(image_name)
             return True
         except docker.errors.ImageNotFound:
-            # Image doesn't exist locally, try to pull it
-            try:
-                client.images.pull(image_name)
-                return True
-            except docker.errors.ImageNotFound:
-                raise ValueError(f"Image {image_name} not found in registry")
+            pass
+
+        timeout = BaseRuntime._image_pull_timeout_seconds()
+        command = ["docker", "pull", image_name]
+        try:
+            completed = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                f"Docker image pull for {image_name} timed out after {timeout} seconds"
+            ) from exc
+
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).strip()
+            suffix = f": {detail}" if detail else ""
+            raise RuntimeError(
+                f"Docker image pull for {image_name} failed with exit code "
+                f"{completed.returncode}{suffix}"
+            )
+
+        try:
+            client.images.get(image_name)
+        except docker.errors.ImageNotFound as exc:
+            raise RuntimeError(
+                f"Docker image pull for {image_name} completed without a local image"
+            ) from exc
+        return True
 
     def cleanup(self, prune_dangling: bool = True) -> None:
         if self.stopped:
