@@ -16,7 +16,9 @@ from launch.core.platforms.base import (
     BaseRuntime
 )
 
-import os, json
+import json
+import os
+import posixpath
 from typing import Any, Optional
 import queue
 import threading
@@ -25,6 +27,12 @@ import uuid
 
 import docker
 from docker.models.containers import Container
+
+
+def _container_mount_path(mount_path: str, filename: str) -> str:
+    """Build a path for a Linux container regardless of the host platform."""
+    return posixpath.join(mount_path, filename)
+
 
 class LinuxRuntime(BaseRuntime):
 
@@ -95,22 +103,61 @@ class LinuxRuntime(BaseRuntime):
         '''
         timeout: in seconds
         '''
-        
-        accumulated_output = ""
+
+        # Keep all output for the command result, but do not run the full prompt
+        # regex against that growing buffer after every socket chunk.  Large test
+        # logs arrive in many small chunks; rescanning the whole log per chunk is
+        # quadratic and can leave the evaluator apparently hung after a command
+        # has already completed.
+        output_chunks: list[str] = []
+        prompt_start = CMD_OUTPUT_PS1_BEGIN.strip()
+        prompt_end = CMD_OUTPUT_PS1_END.strip()
+        marker_tail = ""
+        prompt_candidate: str | None = None
         start_time = time.time()
 
         while time.time() - start_time < timeout:
             try:
                 chunk = self.output_queue.get(timeout=0.1)
-                accumulated_output += chunk.decode("utf-8", errors="ignore")
-                # PSReadLine injects ANSI + cursor control; normalize before matching
-                accumulated_clean = ANSI_ESCAPE.sub("", accumulated_output).replace("\r", "")
-                ps1_matches = CmdOutputMetadata.matches_ps1_metadata(accumulated_clean)
-                if ps1_matches:
+                decoded_chunk = chunk.decode("utf-8", errors="ignore")
+                output_chunks.append(decoded_chunk)
+                # Prompt markers are plain text.  Normalize only the bounded
+                # detection buffer while streaming, then normalize the complete
+                # output once below before extracting the final command output.
+                clean_chunk = ANSI_ESCAPE.sub("", decoded_chunk).replace("\r", "")
+
+                if prompt_candidate is None:
+                    probe = marker_tail + clean_chunk
+                    start = probe.rfind(prompt_start)
+                    if start < 0:
+                        marker_tail = probe[-(len(prompt_start) - 1):]
+                        continue
+                    prompt_candidate = probe[start:]
+                    marker_tail = ""
+                else:
+                    prompt_candidate += clean_chunk
+
+                if prompt_end not in prompt_candidate:
+                    continue
+
+                # Parse only the small prompt candidate while streaming.  The
+                # complete output is parsed once after the loop so callers keep
+                # the existing output/metadata semantics.
+                if CmdOutputMetadata.matches_ps1_metadata(prompt_candidate):
                     break
+
+                # Command output can contain marker-like text.  Discard an
+                # invalid completed candidate and resume bounded marker search.
+                next_start = prompt_candidate.rfind(prompt_start, 1)
+                if next_start > 0:
+                    prompt_candidate = prompt_candidate[next_start:]
+                else:
+                    marker_tail = prompt_candidate[-(len(prompt_start) - 1):]
+                    prompt_candidate = None
             except queue.Empty:
                 continue
-        accumulated_output = ANSI_ESCAPE.sub("", accumulated_output).replace("\r", "")
+
+        accumulated_output = ANSI_ESCAPE.sub("", "".join(output_chunks)).replace("\r", "")
         ps1_matches = CmdOutputMetadata.matches_ps1_metadata(accumulated_output)
         metadata = (
             CmdOutputMetadata.from_ps1_match(ps1_matches[-1]) if ps1_matches else None
@@ -205,9 +252,13 @@ class LinuxRuntime(BaseRuntime):
 
         filename = f"{uuid.uuid4()}.diff"
         hostpath = os.path.join(self.mnt_host, filename)
-        with open(hostpath, "w") as f:
-            f.write(patch)
-        containerpath =  os.path.join(self.mnt_container, filename)
+        # The file is bind-mounted into a Linux container. Normalize model
+        # output to UTF-8, no BOM, and LF-only newlines so git apply sees
+        # stable patch context bytes regardless of the Windows host.
+        normalized_patch = patch.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
+        with open(hostpath, "w", encoding="utf-8", newline="\n") as f:
+            f.write(normalized_patch)
+        containerpath = _container_mount_path(self.mnt_container, filename)
         
         cmd = f"""git apply --reject  --whitespace=nowarn  {containerpath} """
         res = self.send_command(cmd)

@@ -41,6 +41,8 @@ index 0000000..7a754f4
 
 import os
 import platform as host_platform
+import queue
+from types import SimpleNamespace
 import warnings
 
 import docker
@@ -48,9 +50,12 @@ import pytest
 from docker.errors import APIError, DockerException, ImageNotFound
 
 from launch.core.runtime import SetupRuntime
+from launch.core.platforms.base import CmdOutputMetadata
 from launch.core.platforms.linux import LinuxRuntime
 from launch.core.platforms.windows import WindowsRuntime
 from launch.core.platforms.android import AndroidRuntime
+from launch.core.platforms.linux import _container_mount_path
+from launch.utilities.tools.str_replace_editor import _join_container_path
 #from launch.core.platforms.macos import MacosRuntime
 
 
@@ -168,6 +173,82 @@ def test_runtime_constructor_attributes(runtime_cls, expected_attrs, patch_runti
     finally:
         runtime.stopped = True
 
+
+
+def test_linux_container_mount_paths_use_posix_separators():
+    assert _container_mount_path("/mnt_tmp", "patch.diff") == "/mnt_tmp/patch.diff"
+    assert _join_container_path("/mnt_tmp", "patch.diff", "linux") == "/mnt_tmp/patch.diff"
+    assert _join_container_path("C:\\mnt_tmp", "patch.diff", "windows") == os.path.join("C:\\mnt_tmp", "patch.diff")
+
+
+def test_linux_runtime_applies_patch_using_posix_container_path(monkeypatch, tmp_path):
+    runtime = LinuxRuntime.__new__(LinuxRuntime)
+    runtime.mnt_host = str(tmp_path)
+    runtime.mnt_container = "/mnt_tmp"
+    commands = []
+
+    def send_command(command, timeout=None):
+        commands.append(command)
+        return SimpleNamespace(metadata=SimpleNamespace(exit_code=0), output="")
+
+    monkeypatch.setattr(runtime, "send_command", send_command)
+    assert runtime.apply_patch("diff --git a/a b/a\n") is True
+    assert commands[0].startswith("git apply")
+    assert "/mnt_tmp/" in commands[0]
+    assert "\\" not in commands[0]
+    assert commands[1].startswith("rm /mnt_tmp/")
+    runtime.stopped = True
+
+
+def test_linux_runtime_writes_utf8_lf_patch_without_bom(monkeypatch, tmp_path):
+    runtime = LinuxRuntime.__new__(LinuxRuntime)
+    runtime.mnt_host = str(tmp_path)
+    runtime.mnt_container = "/mnt_tmp"
+
+    def send_command(command, timeout=None):
+        if command.startswith("rm "):
+            return SimpleNamespace(metadata=SimpleNamespace(exit_code=0), output="")
+        mounted_filename = command.rsplit("/", 1)[-1].split()[0]
+        payload = (tmp_path / mounted_filename).read_bytes()
+        assert payload == b"diff --git a/a b/a\n+line\n"
+        assert b"\r\n" not in payload
+        assert not payload.startswith(b"\xef\xbb\xbf")
+        return SimpleNamespace(metadata=SimpleNamespace(exit_code=0), output="")
+
+    monkeypatch.setattr(runtime, "send_command", send_command)
+    assert runtime.apply_patch("\ufeffdiff --git a/a b/a\r\n+line\r\n") is True
+    runtime.stopped = True
+
+
+def test_linux_runtime_detects_prompt_without_rescanning_large_output(monkeypatch):
+    runtime = LinuxRuntime.__new__(LinuxRuntime)
+    runtime.stopped = True
+    runtime.output_queue = queue.Queue()
+    command_output = ("pytest output line\n" * 20_000)
+    prompt = "\n###PS1JSON###\n{\"exit_code\": 0}\n###PS1END###\n"
+    for offset in range(0, len(command_output), 257):
+        runtime.output_queue.put(command_output[offset : offset + 257].encode())
+    for offset in range(0, len(prompt), 7):
+        runtime.output_queue.put(prompt[offset : offset + 7].encode())
+
+    original = CmdOutputMetadata.matches_ps1_metadata.__func__
+    calls = []
+
+    def record_matches(cls, output):
+        calls.append(len(output))
+        return original(cls, output)
+
+    monkeypatch.setattr(CmdOutputMetadata, "matches_ps1_metadata", classmethod(record_matches))
+    output, metadata = runtime._read_raw_output(timeout=1)
+
+    assert metadata is not None
+    assert metadata.exit_code == 0
+    assert output == command_output
+    # One bounded prompt parse and one final full-output parse; the old loop
+    # performed a growing full-log regex scan after every queue chunk.
+    assert len(calls) == 2
+    assert calls[0] < len(prompt) + 16
+    assert calls[1] == len(command_output) + len(prompt)
 
 
 def supported_integration_platforms() -> set[str]:
