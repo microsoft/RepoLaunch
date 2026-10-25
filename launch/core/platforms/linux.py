@@ -248,6 +248,16 @@ class LinuxRuntime(BaseRuntime):
             "cpu_quota": int(CPU_CORES * 100000),
             "mem_limit": MEM_LIMIT,
         }
+        # Keep Linux sandboxes device-isolated by default. Consumers that need
+        # a narrowly scoped device (for example, NetBird tests that exercise
+        # WireGuard through /dev/net/tun) can opt in explicitly.
+        requested_devices = [
+            device.strip()
+            for device in os.environ.get("SWE_BENCH_LIVE_DOCKER_DEVICES", "").split(",")
+            if device.strip()
+        ]
+        if requested_devices:
+            run_kwargs["devices"] = requested_devices
 
         container = client.containers.run(
             image_name,
