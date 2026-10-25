@@ -248,6 +248,16 @@ class LinuxRuntime(BaseRuntime):
             "cpu_quota": int(CPU_CORES * 100000),
             "mem_limit": MEM_LIMIT,
         }
+        # Keep Linux sandboxes least-privileged by default.  Consumers that need
+        # a narrow Docker capability (for example, network-policy tests using
+        # iptables) can opt in through a comma-separated environment variable.
+        requested_capabilities = [
+            capability.strip()
+            for capability in os.environ.get("SWE_BENCH_LIVE_DOCKER_CAP_ADD", "").split(",")
+            if capability.strip()
+        ]
+        if requested_capabilities:
+            run_kwargs["cap_add"] = requested_capabilities
 
         container = client.containers.run(
             image_name,
