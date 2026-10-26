@@ -248,6 +248,16 @@ class LinuxRuntime(BaseRuntime):
             "cpu_quota": int(CPU_CORES * 100000),
             "mem_limit": MEM_LIMIT,
         }
+        # Preserve Docker Engine DNS by default. An evaluator may explicitly
+        # request reviewed nameservers for a network-dependent task when the
+        # engine resolver cannot reach the required public DNS service.
+        requested_nameservers = [
+            nameserver.strip()
+            for nameserver in os.environ.get("SWE_BENCH_LIVE_DOCKER_DNS", "").split(",")
+            if nameserver.strip()
+        ]
+        if requested_nameservers:
+            run_kwargs["dns"] = requested_nameservers
 
         container = client.containers.run(
             image_name,
