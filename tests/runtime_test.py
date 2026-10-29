@@ -42,6 +42,7 @@ index 0000000..7a754f4
 import os
 import platform as host_platform
 import warnings
+from types import SimpleNamespace
 
 import docker
 import pytest
@@ -168,6 +169,37 @@ def test_runtime_constructor_attributes(runtime_cls, expected_attrs, patch_runti
     finally:
         runtime.stopped = True
 
+
+
+def test_linux_apply_patch_uses_posix_container_path(tmp_path):
+    runtime = LinuxRuntime.__new__(LinuxRuntime)
+    runtime.mnt_host = str(tmp_path)
+    runtime.mnt_container = "/mnt_tmp"
+    commands = []
+    staged_bytes = []
+
+    def fake_send_command(command):
+        commands.append(command)
+        if command.startswith("git apply"):
+            staged_files = list(tmp_path.glob("*.diff"))
+            assert len(staged_files) == 1
+            staged_bytes.append(staged_files[0].read_bytes())
+        return SimpleNamespace(
+            output="",
+            metadata=SimpleNamespace(exit_code=0),
+        )
+
+    patch = "diff --git a/a b/a\n@@ -1 +1 @@\n-old\n+new\n"
+    runtime.send_command = fake_send_command
+    assert runtime.apply_patch(patch, verbose=False) is True
+    assert commands[0].startswith("git apply")
+    assert "/mnt_tmp/" in commands[0]
+    assert "\\" not in commands[0]
+    assert staged_bytes == [patch.encode("utf-8")]
+    # apply_patch must remove the host-side staging file as well as the
+    # container-side file, so a later evaluator provenance check is not dirtied.
+    assert not list(tmp_path.glob("*.diff"))
+    runtime.stopped = True
 
 
 def supported_integration_platforms() -> set[str]:
